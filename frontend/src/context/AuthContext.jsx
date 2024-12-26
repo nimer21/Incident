@@ -78,7 +78,7 @@ You may want to navigate only after confirming that the logout was successful.
   const login = async ({ ...data }) => {
     setErrors([]);
     try {
-      const response = await axios.post("http://localhost:5005/api/users/login", data, {
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/users/login`, data, {
         withCredentials: true, // Include cookies in requests
       });
       // Extract user data from response
@@ -114,7 +114,7 @@ You may want to navigate only after confirming that the logout was successful.
   const register = async ({ ...data }) => {
     setErrors([]);
     try {
-      const response = await axios.post("http://localhost:5005/api/users/register", data);
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/users/register`, data);
       toast.success(response.data.message);
       navigate("/login", { replace: true });
     } catch (error) {
@@ -128,7 +128,7 @@ You may want to navigate only after confirming that the logout was successful.
       //const token = sessionStorage.getItem("token");
 
       const responseLogout = await axios.post(
-        "http://localhost:5005/api/users/logout",
+        `${process.env.REACT_APP_API_URL}/api/users/logout`,
         {}, // No request body
         {
           withCredentials: true, // Include cookies in requests
