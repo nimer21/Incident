@@ -14,8 +14,8 @@ connectDB();
 // CORS options
 var corsOptions = {
     //origin: "http://localhost:5173",
-    origin: "https://incident-ckmb455a3-nimer21s-projects.vercel.app",
-    //origin: process.env.FRONTEND_URL,
+    //origin: "https://incident-ckmb455a3-nimer21s-projects.vercel.app",
+    origin: process.env.FRONTEND_URL,
     //origin: '*', // Allow all origins (not recommended for production)
     credentials: true, // Allow credentials
 };
