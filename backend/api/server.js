@@ -18,10 +18,10 @@ var corsOptions = {
     origin: process.env.FRONTEND_URL,
     //origin: '*', // Allow all origins (not recommended for production)
     credentials: true, // Allow credentials // Allow cookies to be sent with the request
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    //methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    //allowedHeaders: ['Content-Type', 'Authorization'],
 };
-app.options('*', cors(corsOptions)); // Allow preflight requests for all routes
+//app.options('*', cors(corsOptions)); // Allow preflight requests for all routes
 
 // Use CORS middleware
 app.use(cors(corsOptions));
@@ -34,7 +34,7 @@ app.use(express.json());
 //app.options('*', cors(corsOptions)); // Enable preflight across all routes
 app.use(cookieParser()); // Add this line to parse cookies
 
-app.use(bodyParser.json());
+//app.use(bodyParser.json());
 // Define your routes
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/users', userRoutes);
@@ -50,3 +50,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+// Export the app (important for Vercel)
+module.exports = app;
