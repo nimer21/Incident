@@ -17,7 +17,7 @@ var corsOptions = {
     //origin: "https://incident-ckmb455a3-nimer21s-projects.vercel.app",
     origin: process.env.FRONTEND_URL,
     //origin: '*', // Allow all origins (not recommended for production)
-    credentials: true, // Allow credentials
+    credentials: true, // Allow credentials // Allow cookies to be sent with the request
 };
 // Use CORS middleware
 app.use(cors(corsOptions));
@@ -33,6 +33,11 @@ app.use(bodyParser.json());
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/users', userRoutes);
 
+
+app.get('/health', (req, res) => {
+    res.status(200).send('Backend is healthy');
+  });
+  
 const PORT = process.env.PORT || 5000;
 
 // Start server

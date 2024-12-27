@@ -245,8 +245,9 @@ exports.loginUser = async (req, res) => {
         // Set token as a secure, HTTP-only cookie
         res.cookie("authToken", token, {
             httpOnly: true,
-            //secure: process.env.NODE_ENV === "production" && req.secure, // Adjust for local testing // Enable in production
+            secure: process.env.NODE_ENV === "production" && req.secure, // Adjust for local testing // Enable in production
             sameSite: "strict",
+            //sameSite: "lax", // or "none" if you need cross-origin support
             maxAge: 3600000, // 1 hour
         });
 
