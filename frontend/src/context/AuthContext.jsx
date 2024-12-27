@@ -78,7 +78,6 @@ You may want to navigate only after confirming that the logout was successful.
   const login = async ({ ...data }) => {
     setErrors([]);
     try {
-      console.log("process.env.REACT_APP_API_URL: ", );
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/users/login`, data, {
         withCredentials: true, // Include cookies in requests
       });
