@@ -2,10 +2,10 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "Incident Reporting System - SOS Palestine",
-  "main": "server.js",
+  "main": "api/server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node app/server.js",
+    "start": "node api/server.js",
     "dev": "nodemon server.js"
   },
   "author": "Nimer El Sayed",
