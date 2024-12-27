@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useDispatch } from 'react-redux';
+import { useDispatch } from "react-redux";
 import { clearUser, setUser } from "../redux/slices/userSlice";
 
 const AuthContext = createContext({});
@@ -12,17 +12,16 @@ export const AuthProvider = ({ children }) => {
   const [errors, setErrors] = useState([]);
   const navigate = useNavigate();
   const dispatch = useDispatch(); // Hook to dispatch actions
-  
 
   // Check token expiration and remove it if session ended
   const sessionTimeout = 30 * 60 * 1000; // 30 minutes in milliseconds
   let sessionTimer;
 
   const startSessionTimer = () => {
-    console.log('Starting session timer...');
+    console.log("Starting session timer...");
     sessionTimer = setTimeout(() => {
-      console.log('Session expired, logging out...');
-      toast.success('Session expired, logging out...📤'); //
+      console.log("Session expired, logging out...");
+      toast.success("Session expired, logging out...📤"); //
       logout();
       //navigate("/");
       /**
@@ -32,23 +31,23 @@ You may want to navigate only after confirming that the logout was successful.
        */
     }, sessionTimeout);
   };
-  
+
   useEffect(() => {
     const resetSessionTimer = () => {
-        if (sessionTimer) clearTimeout(sessionTimer);
-        startSessionTimer(); // Restart timer on activity
+      if (sessionTimer) clearTimeout(sessionTimer);
+      startSessionTimer(); // Restart timer on activity
     };
 
     window.addEventListener("mousemove", resetSessionTimer);
     window.addEventListener("keydown", resetSessionTimer);
 
     return () => {
-        window.removeEventListener("mousemove", resetSessionTimer);
-        window.removeEventListener("keydown", resetSessionTimer);
+      window.removeEventListener("mousemove", resetSessionTimer);
+      window.removeEventListener("keydown", resetSessionTimer);
     };
-}, []);
+  }, []);
 
-/*
+  /*
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -78,9 +77,13 @@ You may want to navigate only after confirming that the logout was successful.
   const login = async ({ ...data }) => {
     setErrors([]);
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/users/login`, data, {
-        withCredentials: true, // Include cookies in requests
-      });
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/users/login`,
+        data,
+        {
+          withCredentials: true, // Include cookies in requests
+        }
+      );
       // Extract user data from response
       const { message, user } = response.data;
       // Fetch user data after login
@@ -91,20 +94,20 @@ You may want to navigate only after confirming that the logout was successful.
       //dispatch(setUser(response.data.user._id)); // Store user in Redux
       toast.success(message);
       startSessionTimer();
-         // Navigate based on role
-       if (user.role === "super_admin") {
+      // Navigate based on role
+      if (user.role === "super_admin") {
         navigate("/admin-dashboard");
-    } else if (user.role === "user") {
+      } else if (user.role === "user") {
         navigate(`/user-dashboard`);
-    } else {
+      } else {
         navigate("/"); // Default or error handling
-    }
+      }
     } catch (error) {
       toast.error(error.response?.data?.error || "Unknown error"); //
       //setErrors(error.response?.data?.error+ ": " + error.response.status);
       console.error(error);
-      
-      if(error.message=="Network Error"){
+
+      if (error.message == "Network Error") {
         setErrors(["خطأ في الاتصال بالسيرفر"]);
         toast.error("تأكد من الاتصال بالإنترنت"); //
       }
@@ -114,12 +117,15 @@ You may want to navigate only after confirming that the logout was successful.
   const register = async ({ ...data }) => {
     setErrors([]);
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/users/register`, data);
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/users/register`,
+        data
+      );
       toast.success(response.data.message);
       navigate("/login", { replace: true });
     } catch (error) {
       toast.error(error?.response?.data?.error);
-      setErrors(error.response.data.error+ ": " + error.response.status);
+      setErrors(error.response.data.error + ": " + error.response.status);
     }
   };
 
@@ -137,7 +143,6 @@ You may want to navigate only after confirming that the logout was successful.
           //   // Authorization: `Bearer ${token}` // Include if your server still validates tokens for logout
           // },
         }
-
       );
       //console.log('Logout successful:', responseLogout.data.message);
       toast.success(responseLogout.data.message);
@@ -145,7 +150,7 @@ You may want to navigate only after confirming that the logout was successful.
       dispatch(clearUser()); // Clear Redux store
       navigate("/"); // Navigate after clearing user
     } catch (error) {
-      console.error('Logout error:', error.response.data.message);
+      console.error("Logout error:", error.response.data.message);
       toast.error(error.response.data.message);
       navigate("/"); // Navigate in case of error as well
     }

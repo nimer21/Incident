@@ -29,7 +29,7 @@ const CaseManagerDashboard = ({ user }) => {
   useEffect(() => {
     const fetchIncidents = async () => {
       try {
-        const response = await axios.get("http://localhost:5005/api/incidents/get-incidents", {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/incidents/get-incidents`, {
           //params: { search, category, page: 1, limit: 10 },
           params: { search, page, limit: 10 },
           withCredentials: true, // Send cookies for authentication
@@ -54,7 +54,7 @@ const CaseManagerDashboard = ({ user }) => {
   const handleViewIncident = async (id) => {
     try {
       const response = await axios.get(
-        `http://localhost:5005/api/incidents/get-incident/${id}`,
+        `${import.meta.env.VITE_API_URL}/api/incidents/get-incident/${id}`,
         {
           withCredentials: true, // Include cookies in requests
         }
@@ -72,7 +72,7 @@ const CaseManagerDashboard = ({ user }) => {
     //await updateSeverity(incidentId, severity); // Backend API call
     try {
       const response = await axios.put(
-        `http://localhost:5005/api/incidents/${incidentId}/severity`,
+        `${import.meta.env.VITE_API_URL}/api/incidents/${incidentId}/severity`,
         { severity },
         {
           withCredentials: true, // Include cookies in requests

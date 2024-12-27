@@ -14,11 +14,16 @@ connectDB();
 // CORS options
 var corsOptions = {
     //origin: "http://localhost:5173",
-    origin: process.env.FRONTEND_URL,
+    origin: "https://incident-ckmb455a3-nimer21s-projects.vercel.app",
+    //origin: process.env.FRONTEND_URL,
+    //origin: '*', // Allow all origins (not recommended for production)
     credentials: true, // Allow credentials
 };
 // Use CORS middleware
 app.use(cors(corsOptions));
+
+// Enable Cross-Origin Resource Sharing (CORS)
+//app.use(cors());
 
 // Preflight handling
 //app.options('*', cors(corsOptions)); // Enable preflight across all routes
