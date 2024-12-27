@@ -18,6 +18,8 @@ var corsOptions = {
     origin: process.env.FRONTEND_URL,
     //origin: '*', // Allow all origins (not recommended for production)
     credentials: true, // Allow credentials // Allow cookies to be sent with the request
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
 };
 // Use CORS middleware
 app.use(cors(corsOptions));
