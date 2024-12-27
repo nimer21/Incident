@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const connectDB = require('./config/db');
-const incidentRoutes = require('./routes/incidentRoutes');
-const userRoutes = require('./routes/userRoutes');
+const connectDB = require('../config/db');
+const incidentRoutes = require('../routes/incidentRoutes');
+const userRoutes = require('../routes/userRoutes');
 const cookieParser = require('cookie-parser');
 
 require('dotenv').config();
