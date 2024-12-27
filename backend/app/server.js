@@ -40,8 +40,8 @@ app.use('/api/incidents', incidentRoutes);
 app.use('/api/users', userRoutes);
 
 
-app.get('/health', (req, res) => {
-    res.status(200).send('Backend is healthy');
+app.get("/", (req, res) => {
+    res.send("Incident Management API is running.");
   });
   
 const PORT = process.env.PORT || 5000;
