@@ -93,6 +93,43 @@ const incidentSchema = new mongoose.Schema({
           timestamp: { type: Date, default: Date.now },
         },
       ],
+      riskAssessment: {
+        immediateDanger: { type: Boolean, default: false },
+        interventionRequired: { type: Boolean, default: false },
+        severityLevel: { type: String, enum: ['Low', 'Medium', 'High'] },
+    },
+    outcome: {
+        acknowledged: { type: Boolean, default: false },
+        supportProvided: { type: Boolean, default: false },
+        escalatedToSafeguardingTeam: { type: Boolean, default: false },
+    },
+    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    restrictedFields: {
+        reporterName: { type: String, select: false }, // Hidden from CaseManager
+      },
+      escalationStatus: {
+        type: String,
+        enum: ["Not Escalated", "Safeguarding Team", "Investigation", "CMT Review", "Action Taken"],
+        default: "Not Escalated",
+      },
+    //   tasks: [
+    //     {
+    //       title: String,
+    //       assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    //       deadline: Date,
+    //       status: { type: String, enum: ["Pending", "Completed"], default: "Pending" },
+    //       assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    //       accessLevel: { type: String, enum: ["read-only", "edit"], default: "read-only" },
+    //     },
+    //   ],
+      accessTracking: [
+        {
+          userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+          accessLevel: String, // "read-only" or "edit"
+          grantedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
 }, { timestamps: true });
 
 module.exports = mongoose.model('Incident', incidentSchema);

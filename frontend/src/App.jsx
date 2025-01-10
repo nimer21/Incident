@@ -19,6 +19,7 @@ import Unauthorized from "./pages/Unauthorized";
 import useAuthContext, { AuthProvider } from "./context/AuthContext";
 import { useSelector } from "react-redux";
 import CaseManagerDashboard from "./pages/CaseManagerDashboard";
+import TaskList from "./pages/TaskList";
 
 const App = () => {
   const user = useSelector((state) => state.user.user);
@@ -67,6 +68,7 @@ const App = () => {
             </ProtectedRoutes>
         } />
         <Route path="/casemanager-dashboard" element={<CaseManagerDashboard user={user} />} />
+        <Route path="/tasks" element={<TaskList />} />
         <Route path="/admin-dashboard" element={
             <ProtectedRoutes allowedRoles={["super_admin"]}>
                 <AdminDashboard />

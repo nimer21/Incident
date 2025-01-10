@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import useAuthContext from "../context/AuthContext";
 import RegistrationForm from "../components/RegistrationForm";
 import { useSelector } from "react-redux";
 

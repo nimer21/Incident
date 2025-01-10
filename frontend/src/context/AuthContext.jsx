@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
   const startSessionTimer = () => {
     console.log("Starting session timer...");
     sessionTimer = setTimeout(() => {
-      console.log("Session expired, logging out...");
+      //console.log("Session expired, logging out...");
       toast.success("Session expired, logging out...📤"); //
       logout();
       //navigate("/");

@@ -1,6 +1,7 @@
 const Blacklist = require('../models/Blacklist');
 const Incident = require('../models/Incident');
 const User = require('../models/User');
+const Task = require('../models/Task');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require("nodemailer");
@@ -37,40 +38,40 @@ exports.reportIncident = async (req, res) => {
         const caseManagers = await User.find({
         role: { $in: ['asset_safeguarding', 'child_safeguarding', 'youth_adult', 'data_breach'] },
             });
+
+        // Extract emails from the case managers
+        const emails = caseManagers.map(manager => manager.email).filter(email => email); // Ensure no undefined emails
+        // if (!emails.length) {
+        //     throw new Error("No case managers found");
+        // }
+//****************************************************************** */
+        // // Create tasks for case managers
+        // const tasks = caseManagers.map(manager => ({
+        //     title: `Assign Task for Incident ${incidentData.caseReference}`,
+        //     assignedTo: manager._id,
+        //     deadline: incidentData.deadline,
+        //     incident: incident._id,
+        // }));
+
+        //await Task.insertMany(tasks);
+//******************************************************************
         // Send email notification to admin
-        /*const adminEmail = process.env.ADMIN_EMAIL;
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: adminEmail,
-            subject: "New Incident Reported",
-            text: `A new incident has been reported: ${incidentData.title}. Case Reference: ${incidentData.caseReference}`,
-        };
-        transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-                console.error("Error sending email:", error);
-            } else {
-                console.log("Email sent:", info.response);
-            }
-        });*/
-        // Send email notifications
-        //caseManagers.forEach((manager) => {
-        const mailOptions = {
-          from: process.env.EMAIL_USER,
-          //to: manager.email,
-          to: "nimerelsayed@hotmail.com",
-          subject: `New Incident Reported: ${req.body.subject}`,
-          //text: `Hello ${manager.username},\n\nA new incident has been reported with the following details:\n\nTitle: ${req.body.subject}\nDescription: ${req.body.incidentDescription}\nLocation: ${req.body.programLocation}\n\nPlease login to review the incident.`,
-          text: `Hello ${"Tiger"},\n\nA new incident has been reported with the following details:\n\nTitle: ${req.body.subject}\nDescription: ${req.body.incidentDescription}\nLocation: ${req.body.programLocation}\n\nPlease login to review the incident.`,
-        };
-  
-        transporter.sendMail(mailOptions, (error, info) => {
-          if (error) {
-            console.error('Error sending email:', error);
-          } else {
-            console.log(`Email sent to ${"nimerelsayed@hotmail.com"}:`, info.response); //manager.email
-          }
-        });
-      //});
+       if (emails.length > 0) {
+                   const mailOptions = {
+                       from: process.env.EMAIL_USER,
+                       to: emails, // Use the array of emails
+                       subject: `New ${req.body.category} Incident Reported: ${req.body.subject}`,
+                       text: `Hello,\n\nA new incident has been reported with the following details:\n\nTitle: ${req.body.subject}\nDescription: ${req.body.incidentDescription}\nLocation: ${req.body.programLocation}\n\nPlease login to review the incident.`,
+                   };
+       
+                   transporter.sendMail(mailOptions, (error, info) => {
+                       if (error) {
+                           console.error('Error sending email:', error);
+                       } else {
+                           console.log(`Email sent to ${emails.join(', ')}:`, info.response);
+                       }
+                   });
+               }
   
       // Update incident's notifiedManagers field
       incident.notifiedManagers = true;
@@ -181,6 +182,24 @@ exports.registerUser = async (req, res) => {
     try {
         const { username, password, incidents  } = req.body;
 
+        // Get all indexes on the collection
+    const indexes = await User.collection.getIndexes();
+    //const indexExists = indexes.some(index => index.name === 'email_1');
+    const indexExists = Object.keys(indexes).some((indexName) => indexName === 'email_1');
+
+    if (indexExists) {
+      // Drop the index
+      await User.collection.dropIndex('email_1');
+      console.log('Index dropped successfully.');
+      //await User.collection.createIndex({ email: 1 }, { unique: true, sparse: true });
+    } else {
+      console.log('Index email_1 does not exist.');
+      //console.log("Index 'email_1' does not exist. Creating index...");
+      //await User.collection.createIndex({ email: 1 }, { unique: true, sparse: true });
+      //console.log("Index email_1 created successfully.");
+    }    
+
+
         // Validate that `incidents` is an array
         if (!Array.isArray(incidents)) {
             return res.status(400).json({ error: "Incidents must be an array." });
@@ -277,14 +296,15 @@ exports.logoutUser = async (req, res) => {
         }
 
         // Add the token to a blacklist to prevent reuse
+        // Ensure the token is not already in the blacklist
         const existingBlacklistEntry = await Blacklist.findOne({ token });
         
         if (!existingBlacklistEntry) {
-            const blacklistToken = new Blacklist({ token });
-            await blacklistToken.save();
+            await Blacklist.create({ token });
+            //const blacklistToken = new Blacklist({ token });
+            // Save only if the token does not already exist
+            //await blacklistToken.save();
             //console.log("Token blacklisted successfully.",token);
-        } else {
-            //console.log("Token is already blacklisted.",token);
         }
 
         // Decode token to validate or log user info (optional)
@@ -310,10 +330,40 @@ exports.logoutUser = async (req, res) => {
         res.status(200).json({ message: "Logout successful 👋" });      
 
     } catch (error) {
+        if (error.code === 11000) {
+            // Handle duplicate key errors gracefully
+            console.error("Token is already blacklisted:", error);
+            return res.status(200).json({ message: "Token already blacklisted, logout successful 👋" });
+        }
         console.error("Logout error: ", error);
         res.status(500).json({ message: "Internal server error" });        
     }
 };
+
+exports.fetchUsers = async (req, res) => {
+    try {
+        // Fetch all users from the database, excluding password and version fields
+        const users = await User.find({ role: { $ne: 'user' } }, '-password -__v'); // Exclude password and version fields
+
+        // Check if users were found
+        if (!users.length) {
+            return res.status(404).json({ message: "No users found" });
+        }
+
+        // Format the response to include name and role
+        const formattedUsers = users.map(user => ({
+            name: user.username, // Assuming 'username' is the field for user's name
+            role: user.role      // Assuming 'role' is a field that indicates user's role
+        }));
+
+        // Send the formatted list of users as a response
+        res.status(200).json(users);
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
 
 exports.authenticate = async (req, res) => {
     try {
@@ -330,7 +380,7 @@ exports.authenticate = async (req, res) => {
     }
 };
 
-// Endpoint to fetch all incidents
+// Endpoint to fetch all incidents with Tasks
 exports.getIncidents = async (req, res) => {
     //const { role, category, search, page = 1, limit = 10 } = req.query;
     try {
@@ -375,9 +425,20 @@ exports.getIncidents = async (req, res) => {
          //const incidents = await Incident.find().limit(10);
 
          const total = await Incident.countDocuments(query);
+
+         // Fetch tasks related to these incidents
+    const tasks = await Task.find({ incidentId: { $in: incidents.map((i) => i._id) } })
+    .populate('assignedTo', 'username') // Populate `assignedTo` with `username`
+    .populate('assignedBy', 'username'); // Populate `assignedBy` with `username`
+
+  // Map tasks to their respective incidents
+  const incidentsWithTasks = incidents.map((incident) => ({
+    ...incident.toObject(),
+    tasks: tasks.filter((task) => task.incidentId.toString() === incident._id.toString()),
+  }));
          
         res.status(200).json({
-            incidents,
+            incidentsWithTasks,
             total,
             page: Number(page),
             pages: Math.ceil(total / limit),
@@ -509,3 +570,119 @@ exports.createSystemUsers = async (req, res) => {
         res.status(500).send('Server error');
       }
 };
+
+// Assign Task
+exports.assignIncidentTasks = async (req, res) => {
+  const { incidentId } = req.params;
+  const { title, assignedTo, deadline, accessLevel } = req.body;
+
+  try {
+    if (!title ||!assignedTo ||!deadline ||!accessLevel) {
+      return res.status(422).json({ error: "Title, assignedTo, deadline, and access level are required" });
+    }
+
+    // Fetch user details based on assignedBy (userId)
+    const assigningUser = await User.findById(req.user.userId); // Assuming userId is stored in req.user
+    if (!assigningUser) {
+        return res.status(404).json({ message: "User (assigningUser) not found" });
+    }
+    // Fetch user details based on assignedTo (userId)
+    const assignedUser = await User.findById(assignedTo);
+    if (!assignedUser) {
+        return res.status(404).json({ message: "User (assignedUser) not found" });
+    }
+    
+    const incident = await Incident.findById(incidentId);
+    if (!incident) return res.status(404).json({ message: "Incident not found" });
+
+    const task = new Task({
+        title,
+        assignedTo,
+        assignedBy: req.user.userId,
+        incidentId,
+        deadline: new Date(deadline),
+        accessLevel,
+      });
+    //incident.tasks.push(task);
+    await task.save();
+
+    res.status(201).json({ message: "Task assigned successfully", task, assignedByName: assigningUser.username, assignedToName: assignedUser.username });
+  } catch (error) {
+    console.error("Error assigning task:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.updateEscalationStatus  = async (req, res) => {
+    const { incidentId } = req.params;
+    const { status } = req.body; // New escalation status
+  
+    try {
+      const incident = await Incident.findById(incidentId);
+      if (!incident) return res.status(404).json({ message: "Incident not found" });
+  
+      incident.escalationStatus = status;
+      await incident.save();
+  
+      res.status(200).json({ message: "Escalation status updated successfully", incident });
+    } catch (error) {
+      console.error("Error escalating incident:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  };
+
+  exports.addUpdateaccessLevels  = async (req, res) => {
+    const { incidentId } = req.params;
+    const { userId, accessLevel, grantedBy } = req.body;
+  
+    try {
+      const incident = await Incident.findById(incidentId);
+      if (!incident) return res.status(404).json({ message: "Incident not found" });
+  
+      incident.accessTracking.push({ userId, accessLevel, grantedBy });
+      await incident.save();
+  
+      res.status(200).json({ message: "Access updated successfully", incident });
+    } catch (error) {
+      console.error("Error updating access:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  };
+  exports.fetchAssignedTasks = async (req, res) => {
+    try {
+      const { userId } = req.user; // Extract logged-in user ID
+
+      const tasks = await Task.find({ assignedTo: userId })
+        .populate('incidentId', 'caseReference subject') // Populate related incident details
+        .populate('assignedBy', 'username'); // Populate `assignedBy` details
+
+      res.status(200).json(tasks);
+    } catch (error) {
+      console.error('Error fetching assigned tasks:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  };
+
+  exports.updateTaskStatus = async (req, res) => {
+    try {
+      const { taskId } = req.params;
+      const { status, feedback } = req.body;
+  
+      const task = await Task.findById(taskId);
+      if (!task) return res.status(404).json({ message: 'Task not found' });
+  
+      // Update status and feedback
+      task.status = status || task.status;
+      task.feedback = feedback || task.feedback;
+      await task.save();
+  
+      res.status(200).json({ message: 'Task updated successfully', task });
+    } catch (error) {
+      console.error('Error updating task:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  };
+  
+  
+  
+  

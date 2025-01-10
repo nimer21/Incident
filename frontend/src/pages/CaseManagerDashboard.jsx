@@ -3,6 +3,7 @@ import axios from "axios";
 import useAuthContext from "../context/AuthContext";
 import { toast } from "react-toastify";
 import IncidentDetailsModal from "../components/IncidentDetailsModal";
+import { Link } from "react-router-dom";
 
 const severityColors = {
   Low: "text-green-600",
@@ -27,14 +28,14 @@ const CaseManagerDashboard = ({ user }) => {
   const [selectedSeverity, setSelectedSeverity] = useState({});
 
   useEffect(() => {
-    const fetchIncidents = async () => {
+    const fetchIncidentsWithTasks = async () => {
       try {
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/incidents/get-incidents`, {
           //params: { search, category, page: 1, limit: 10 },
           params: { search, page, limit: 10 },
           withCredentials: true, // Send cookies for authentication
         });
-        setIncidents(response.data.incidents);
+        setIncidents(response?.data.incidentsWithTasks);
         setTotalPages(response.data.pages); // Use this for pagination control
         setStats({
           total: response.data.total,
@@ -48,7 +49,7 @@ const CaseManagerDashboard = ({ user }) => {
       }
     };
 
-    fetchIncidents();
+    fetchIncidentsWithTasks();
   }, [search, page]);
 
   const handleViewIncident = async (id) => {
@@ -104,116 +105,127 @@ const CaseManagerDashboard = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-semibold">Case Manager Dashboard</h1>
-        <button
-          className="bg-red-500 text-white py-2 px-4 rounded"
-          onClick={() => {
-            logout();
-          }}
-        >
-          Logout
-        </button>
-      </div>
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-white shadow rounded p-4">
-          <h2 className="text-lg font-semibold">Number of Reports</h2>
-          <p>{stats.total}</p>
-        </div>
-        <div className="bg-white shadow rounded p-4">
-          <h2 className="text-lg font-semibold">New Reports</h2>
-          <p>{stats.newReports}</p>
-        </div>
-        <div className="bg-white shadow rounded p-4">
-          <h2 className="text-lg font-semibold">Active Reminders</h2>
-          <p>{stats.activeReminders}</p>
-        </div>
-      </div>
-      <div className="flex justify-between items-center">
-      
-      {/* Header Section */}
-      <div className="flex items-center gap-4 mb-4">
-        <input
-          type="text"
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="p-2 border rounded"
-        />        
-        </div>
-      </div>     
-      {/* Table Section */}
-      <table className="table-auto w-full text-left border-collapse bg-white shadow rounded border border-gray-300">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="border p-2">
+<div className="min-h-screen bg-gray-50 p-6">
+  {/* Header Section */}
+  <div className="flex justify-between items-center mb-8">
+    <h1 className="text-4xl font-extrabold text-gray-800">Case Manager Dashboard</h1>
+    <div className="flex items-center space-x-4">
+      <button
+        className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition"
+        onClick={() => logout()}
+      >
+        Logout
+      </button>
+      <Link
+        to="/tasks"
+        className="text-blue-600 hover:underline font-semibold transition"
+      >
+        View My Tasks
+      </Link>
+    </div>
+  </div>
+
+  {/* Statistics Section */}
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div className="bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow duration-300">
+      <h2 className="text-xl font-semibold text-gray-700 mb-2">Number of Reports</h2>
+      <p className="text-3xl font-bold text-blue-700">{stats.total}</p>
+    </div>
+    <div className="bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow duration-300">
+      <h2 className="text-xl font-semibold text-gray-700 mb-2">New Reports</h2>
+      <p className="text-3xl font-bold text-green-700">{stats.newReports}</p>
+    </div>
+    <div className="bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow duration-300">
+      <h2 className="text-xl font-semibold text-gray-700 mb-2">Active Reminders</h2>
+      <p className="text-3xl font-bold text-yellow-600">{stats.activeReminders}</p>
+    </div>
+  </div>
+
+  {/* Search and Filter Section */}
+  <div className="mb-6">
+    <div className="flex items-center space-x-4">
+      <input
+        type="text"
+        placeholder="Search..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="flex-1 p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+      />
+    </div>
+  </div>
+
+  {/* Table Section */}
+  <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
+    <table className="table-auto w-full text-left border-collapse">
+      <thead>
+        <tr className="bg-blue-100">
+          <th className="border p-3 text-gray-700 font-semibold">
             <button
-                onClick={() => handleSort("_id")}
-                className="flex items-center space-x-1 hover:text-blue-500"
-              >
-                <span>Reference</span>
-                {sortConfig.key === "_id" && (
-                  <span>{sortConfig.direction === "asc" ? "▲" : "▼"}</span>
-                )}
-              </button>
-            </th>
-            <th className="border p-2">
+              onClick={() => handleSort("_id")}
+              className="flex items-center space-x-1 hover:text-blue-500"
+            >
+              <span>Reference</span>
+              {sortConfig.key === "_id" && (
+                <span>{sortConfig.direction === "asc" ? "▲" : "▼"}</span>
+              )}
+            </button>
+          </th>
+          <th className="border p-3 text-gray-700 font-semibold">
             <button
-                onClick={() => handleSort("subject")}
-                className="flex items-center space-x-1 hover:text-blue-500"
-              >
-                <span>Subject</span>
-                {sortConfig.key === "subject" && (
-                  <span>{sortConfig.direction === "asc" ? "▲" : "▼"}</span>
-                )}
-              </button>
-            </th>
-            <th className="border p-2">
+              onClick={() => handleSort("subject")}
+              className="flex items-center space-x-1 hover:text-blue-500"
+            >
+              <span>Subject</span>
+              {sortConfig.key === "subject" && (
+                <span>{sortConfig.direction === "asc" ? "▲" : "▼"}</span>
+              )}
+            </button>
+          </th>
+          <th className="border p-3 text-gray-700 font-semibold">
             <button
-                onClick={() => handleSort("category")}
-                className="flex items-center space-x-1 hover:text-blue-500"
-              >
-                <span>Category</span>
-                {sortConfig.key === "category" && (
-                  <span>{sortConfig.direction === "asc" ? "▲" : "▼"}</span>
-                )}
-              </button>
-            </th>
-            <th className="border p-2">
+              onClick={() => handleSort("category")}
+              className="flex items-center space-x-1 hover:text-blue-500"
+            >
+              <span>Category</span>
+              {sortConfig.key === "category" && (
+                <span>{sortConfig.direction === "asc" ? "▲" : "▼"}</span>
+              )}
+            </button>
+          </th>
+          <th className="border p-3 text-gray-700 font-semibold">
             <button
-                onClick={() => handleSort("createdAt")}
-                className="flex items-center space-x-1 hover:text-blue-500"
-              >
-                <span>Date</span>
-                {sortConfig.key === "createdAt" && (
-                  <span>{sortConfig.direction === "asc" ? "▲" : "▼"}</span>
-                )}
-              </button>
-            </th>
-            {/* <th className="border p-2">Severity</th> */}
-            <th className="border p-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {incidents?.map((incident) => (
-            <tr key={incident._id}
-            className="hover:bg-gray-100 transition duration-150 ease-in-out">
-              <td className="border p-2">{incident.caseReference}</td>
-              <td className="border p-2">{incident.subject}</td>
-              <td className="border p-2">{incident.category}</td>
-              <td className="border p-2">
-                {new Date(incident.createdAt).toLocaleDateString()}
-              </td>
-              <td className="border p-2">
-              <div className="flex space-x-2 items-center">
+              onClick={() => handleSort("createdAt")}
+              className="flex items-center space-x-1 hover:text-blue-500"
+            >
+              <span>Date</span>
+              {sortConfig.key === "createdAt" && (
+                <span>{sortConfig.direction === "asc" ? "▲" : "▼"}</span>
+              )}
+            </button>
+          </th>
+          <th className="border p-3 text-gray-700 font-semibold">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {incidents?.map((incident) => (
+          <tr
+            key={incident._id}
+            className="hover:bg-gray-50 transition duration-150 ease-in-out"
+          >
+            <td className="border p-3">{incident.caseReference}</td>
+            <td className="border p-3 whitespace-nowrap text-ellipsis overflow-hidden max-w-52">{incident.subject}</td>
+            <td className="border p-3">{incident.category}</td>
+            <td className="border p-3">
+              {new Date(incident.createdAt).toLocaleDateString()}
+            </td>
+            <td className="border p-3">
+              <div className="flex items-center space-x-2">
                 <button
                   onClick={() => handleViewIncident(incident._id)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded transition duration-150"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg shadow transition duration-150"
                 >
                   View
                 </button>
-                {/* Severity Dropdown */}
                 <select
                   value={selectedSeverity[incident._id] || incident.severity}
                   onChange={(e) =>
@@ -235,46 +247,51 @@ const CaseManagerDashboard = ({ user }) => {
                     High
                   </option>
                 </select>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 
-      <div className="mt-4 flex justify-between">
-        <button
-          onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-          disabled={page === 1} // Disable if on the first page
-          className={`px-4 py-2 ${
-            page === 1 ? "bg-gray-300" : "bg-blue-500 text-white"
-          }`}
-        >
-          Previous
-        </button>
-        <span className="px-4 py-2">Page {page}</span>
-        <button
-          onClick={() =>
-            setPage((prev) => (prev < totalPages ? prev + 1 : prev))
-          }
-          disabled={page === totalPages} // Disable if on the last page
-          className={`px-4 py-2 ${
-            page === totalPages ? "bg-gray-300" : "bg-blue-500 text-white"
-          }`}
-        >
-          Next
-        </button>
-      </div>
+  {/* Pagination Section */}
+  <div className="mt-6 flex justify-between items-center">
+    <button
+      onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+      disabled={page === 1}
+      className={`px-4 py-2 rounded-lg shadow ${
+        page === 1
+          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+          : "bg-blue-500 text-white hover:bg-blue-600"
+      }`}
+    >
+      Previous
+    </button>
+    <span className="text-gray-700 font-semibold">Page {page}</span>
+    <button
+      onClick={() => setPage((prev) => (prev < totalPages ? prev + 1 : prev))}
+      disabled={page === totalPages}
+      className={`px-4 py-2 rounded-lg shadow ${
+        page === totalPages
+          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+          : "bg-blue-500 text-white hover:bg-blue-600"
+      }`}
+    >
+      Next
+    </button>
+  </div>
 
-      {/* Modal for Incident Details */}
-      {modalOpen && selectedIncident && (
-        <IncidentDetailsModal
-          selectedIncident={selectedIncident}
-          setSelectedIncident={setSelectedIncident}
-          onClose={handleCloseModal}
-        />
-      )}
-    </div>
+  {/* Modal for Incident Details */}
+  {modalOpen && selectedIncident && (
+    <IncidentDetailsModal
+      selectedIncident={selectedIncident}
+      setSelectedIncident={setSelectedIncident}
+      onClose={handleCloseModal}
+    />
+  )}
+</div>
+
   );
 };
 

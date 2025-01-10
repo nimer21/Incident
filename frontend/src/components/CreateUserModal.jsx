@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { toast } from "react-toastify";
+import axiosInstance from './../api/axiosInstance';
 
 const CreateUserModal = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({
@@ -13,7 +13,7 @@ const CreateUserModal = ({ isOpen, onClose }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post("http://localhost:5005/api/users/create-user", formData, {
+      const response = await axiosInstance.post("/api/users/create-user", formData, {
         withCredentials: true,
       });
       toast.success(formData.role + " " + response?.data);

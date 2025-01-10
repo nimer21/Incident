@@ -1,6 +1,6 @@
-import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import axiosInstance from "../api/axiosInstance";
 
 const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }) => {
     const [newComment, setNewComment] = useState("");
@@ -13,7 +13,7 @@ const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }
       
         try {
         // Send POST request to add a comment
-        const response = await axios.post(`http://localhost:5005/api/incidents/${selectedIncident._id}/comments`,
+        const response = await axiosInstance.post(`/api/incidents/${selectedIncident._id}/comments`,
             { text: newComment }, // Replace 'Admin' with actual username/ID , author: "Admin"
             { withCredentials: true, // Include cookies in requests
           });          
@@ -28,6 +28,7 @@ const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }
           }
         } catch (error) {
           console.error("Error adding comment:", error);
+          toast.error(error.response?.data?.message || "Failed to add comment.");
         }
       };
 
@@ -43,7 +44,7 @@ const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }
         formData.append("incidentId", selectedIncident._id);
     
         try {
-            const response = await axios.post("http://localhost:5005/api/incidents/upload", formData, {
+            const response = await axiosInstance.post("/api/incidents/upload", formData, {
             withCredentials: true, // Include cookies in requests
             headers: { "Content-Type": "multipart/form-data" },
             onUploadProgress: (progressEvent) => {
@@ -115,7 +116,7 @@ const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }
           </p>
           <p>
             <span className="font-medium">Date:</span>{" "}
-            {new Date(selectedIncident.date).toLocaleDateString()}
+            {new Date(selectedIncident.createdAt).toLocaleDateString()}
           </p>
           <p>
             <span className="font-medium">Severity:</span>{" "}

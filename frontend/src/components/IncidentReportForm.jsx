@@ -2,12 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import countries from "../data/dummy.js";
-import axios from 'axios';
 import Modal from './Modal';
 import { toast } from "react-toastify";
-import useAuthContext from "../context/AuthContext.jsx";
 import { useSelector } from "react-redux";
+import axiosInstance from "../api/axiosInstance.jsx";
 
 const IncidentReportForm = () => {
   const navigate = useNavigate();
@@ -96,8 +94,8 @@ const handleCloseClick = () => {
         dataToSubmit.append("user", user.userId);
     }
     try {
-      const response = await axios.post(
-        "http://localhost:5005/api/incidents/report",
+      const response = await axiosInstance.post(
+        "/api/incidents/report",
         dataToSubmit,
         {
         headers: {

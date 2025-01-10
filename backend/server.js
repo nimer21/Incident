@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const connectDB = require('./config/db');
 const incidentRoutes = require('./routes/incidentRoutes');
 const userRoutes = require('./routes/userRoutes');
+const taskRoutes = require('./routes/taskRoutes');
 const cookieParser = require('cookie-parser');
 
 require('dotenv').config();
@@ -13,12 +14,10 @@ connectDB();
 
 // CORS options
 var corsOptions = {
-    //origin: "http://localhost:5173",
-    //origin: "https://incident-ckmb455a3-nimer21s-projects.vercel.app",
     origin: process.env.FRONTEND_URL,
     //origin: '*', // Allow all origins (not recommended for production)
     credentials: true, // Allow credentials // Allow cookies to be sent with the request
-    //methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    //methods: ['GET', 'POST',  'PUT', 'DELETE', 'OPTIONS'],
     //allowedHeaders: ['Content-Type', 'Authorization'],
 };
 //app.options('*', cors(corsOptions)); // Allow preflight requests for all routes
@@ -38,6 +37,7 @@ app.use(cookieParser()); // Add this line to parse cookies
 // Define your routes
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/tasks', taskRoutes);
 
 
 app.get("/", (req, res) => {

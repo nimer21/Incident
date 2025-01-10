@@ -4,6 +4,9 @@ import useAuthContext from "../context/AuthContext";
 import IncidentDetailsModal from "../components/IncidentDetailsModal";
 import { toast } from "react-toastify";
 import CreateUserModal from "../components/CreateUserModal";
+import axiosInstance from "../api/axiosInstance";
+import { Menu, MenuSeparator } from "@headlessui/react";
+import TaskAssignmentModal from "../components/TaskAssignmentModal";
 
 const severityColors = {
   Low: "text-green-600",
@@ -26,9 +29,12 @@ const AdminDashboard = () => {
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "" });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const [modalOpenTaskAssignment, setModalOpenTaskAssignment] = useState(false);
+  const [tasks, setTasks] = useState({}); // Track assigned tasks
+
   //const token = sessionStorage.getItem("token");
 
-  const fetchIncidents = async () => {
+  const fetchIncidentsWithTasks = async () => {
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/incidents/get-incidents`,
@@ -44,7 +50,7 @@ const AdminDashboard = () => {
       //     `http://localhost:5005/api/incidents/get-incidents?search=${searchTerm}&category=${category}&page=${page}&limit=10`
       // );
 
-      setIncidents(response?.data.incidents);
+      setIncidents(response?.data.incidentsWithTasks );
       setTotalPages(response.data.pages); // Use this for pagination control
       setStats({
         total: response.data.total,
@@ -69,9 +75,24 @@ const AdminDashboard = () => {
           withCredentials: true, // Include cookies in requests
         }
       );
+      // Update severity logic here
+      //console.log(`Incident ${incidentId} severity changed to ${severity}`);
+      toast.success(`Incident severity changed to ${severity}`);
     } catch (error) {
       console.error("Error updating incident Severity:", error);
       toast.error(error?.response?.data?.message);
+    }
+  };
+
+  const handleEscalation = async (incidentId, escalationLevel) => {
+    try {
+      await axiosInstance.patch(`/api/incidents/${incidentId}/escalate`, {
+        status: escalationLevel,
+      });
+      toast.success(`Incident escalated to ${escalationLevel}`);
+    } catch (error) {
+      console.error("Error escalating incident:", error);
+      alert("Failed to escalate incident.");
     }
   };
 
@@ -90,10 +111,29 @@ const AdminDashboard = () => {
       toast.error(error?.response?.data?.message);
     }
   };
-  // Close modal
+
+  const handleOpenTaskAssignmentModal = (incidentId) => {
+    setSelectedIncident(incidentId);
+    setModalOpenTaskAssignment(true);
+  };
+
+  const handleTaskAssigned = (incidentId, taskDetails) => {
+    setTasks((prevTasks) => ({
+      ...prevTasks,
+      [incidentId]: {...taskDetails},
+    }));
+    //console.log("Task assigned:", taskDetails);    
+    toast.success(`Task assigned to ${taskDetails.assignedToName} By ${taskDetails.assignedByName} with deadline ${new Date(taskDetails.task.deadline).toLocaleDateString()}`);
+    // Update the incident's status to "Task Assigned"
+    //handleEscalation(incidentId, "Task Assigned");
+    // Update the incident's tasks array with the new task details
+        // await updateTasks(incidentId, taskDetails);
+  };
+
   const handleCloseModal = () => {
     setSelectedIncident(null);
     setModalOpen(false);
+    setModalOpenTaskAssignment(false);
   };
 
   // Sort logic
@@ -106,8 +146,8 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    fetchIncidents();
-  }, [search, category, page]);
+    fetchIncidentsWithTasks();
+  }, [search, category, page, tasks]);
 
   if (loading) {
     return <div>Loading...</div>;
@@ -141,34 +181,33 @@ const AdminDashboard = () => {
         </div>
       </div>
       <div className="flex justify-between items-center">
-      
-      {/* Header Section */}
-      <div className="flex items-center gap-4 mb-4">
-        <input
-          type="text"
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="p-2 border rounded"
-        />
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="p-2 border rounded"
-        >
-          <option value="">All Categories</option>
-          <option value="Asset Safeguarding">Asset Safeguarding</option>
-          <option value="Child Safeguarding">Child Safeguarding</option>
-          <option value="Youth & Adult">Youth & Adult</option>
-          <option value="Data Breach">Data Breach</option>
-        </select>
+        {/* Header Section */}
+        <div className="flex items-center gap-4 mb-4">
+          <input
+            type="text"
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="p-2 border rounded"
+          />
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="p-2 border rounded"
+          >
+            <option value="">All Categories</option>
+            <option value="Asset Safeguarding">Asset Safeguarding</option>
+            <option value="Child Safeguarding">Child Safeguarding</option>
+            <option value="Youth & Adult">Youth & Adult</option>
+            <option value="Data Breach">Data Breach</option>
+          </select>
         </div>
         <button
-            className="bg-green-500 text-white px-4 py-2 rounded mb-4"
-            onClick={() => setIsModalOpen(true)}
-          >
-            Create User
-          </button>      
+          className="bg-green-500 text-white px-4 py-2 rounded mb-4"
+          onClick={() => setIsModalOpen(true)}
+        >
+          Create User
+        </button>
       </div>
       {/* Modal Integration */}
       <CreateUserModal
@@ -176,11 +215,11 @@ const AdminDashboard = () => {
         onClose={() => setIsModalOpen(false)}
       />
       {/* Table Section */}
-      <table className="table-auto w-full text-left border-collapse bg-white shadow rounded border border-gray-300">
+      <table className="table-auto w-full text-left border-collapse bg-white shadow rounded border border-gray-3004">
         <thead>
           <tr className="bg-gray-200">
             <th className="border p-2">
-            <button
+              <button
                 onClick={() => handleSort("_id")}
                 className="flex items-center space-x-1 hover:text-blue-500"
               >
@@ -191,7 +230,7 @@ const AdminDashboard = () => {
               </button>
             </th>
             <th className="border p-2">
-            <button
+              <button
                 onClick={() => handleSort("subject")}
                 className="flex items-center space-x-1 hover:text-blue-500"
               >
@@ -202,7 +241,7 @@ const AdminDashboard = () => {
               </button>
             </th>
             <th className="border p-2">
-            <button
+              <button
                 onClick={() => handleSort("category")}
                 className="flex items-center space-x-1 hover:text-blue-500"
               >
@@ -213,7 +252,7 @@ const AdminDashboard = () => {
               </button>
             </th>
             <th className="border p-2">
-            <button
+              <button
                 onClick={() => handleSort("createdAt")}
                 className="flex items-center space-x-1 hover:text-blue-500"
               >
@@ -223,56 +262,144 @@ const AdminDashboard = () => {
                 )}
               </button>
             </th>
+            <th className="border p-2">Assign</th>
             {/* <th className="border p-2">Severity</th> */}
             <th className="border p-2">Actions</th>
           </tr>
         </thead>
         <tbody>
           {incidents?.map((incident) => (
-            <tr key={incident._id}
-            className="hover:bg-gray-100 transition duration-150 ease-in-out">
+            <tr
+              key={incident._id}
+              className="hover:bg-gray-100 transition duration-150 ease-in-out"
+            >
               <td className="border p-2">{incident.caseReference}</td>
-              <td className="border p-2">{incident.subject}</td>
+              <td className="border p-2 whitespace-nowrap text-ellipsis overflow-hidden max-w-52">{incident.subject}</td>
               <td className="border p-2">{incident.category}</td>
               <td className="border p-2">
                 {new Date(incident.createdAt).toLocaleDateString()}
               </td>
               <td className="border p-2">
-              <div className="flex space-x-2 items-center">
-                <button
-                  onClick={() => handleViewIncident(incident._id)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded transition duration-150"
-                >
-                  View
-                </button>
-                {/* Severity Dropdown */}
-                <select
-                  value={selectedSeverity[incident._id] || incident.severity}
-                  onChange={(e) =>
-                    handleSeverityChange(incident._id, e.target.value)
-                  }
-                  className={`rounded px-2 py-1 border ${
-                    severityColors[
-                      selectedSeverity[incident._id] || incident.severity
-                    ]
-                  }`}
-                >
-                  <option value="Low" className="text-green-600">
-                    Low
-                  </option>
-                  <option value="Medium" className="text-orange-500">
-                    Medium
-                  </option>
-                  <option value="High" className="text-red-600">
-                    High
-                  </option>
-                </select>
+                {/* Task Assignment Button */}
+                {incident.tasks?.length > 0 ? ( //  && incident.tasks[0] 
+                  <>
+                    {/* <div>Assigned to: {tasks[incident._id].assignee}</div>
+                    <div>Deadline: {tasks[incident._id].deadline}</div> */}
+                    {/* <div>Assigned to: {incident.tasks[0].assignedToName || "Unknown"}</div> */}
+                    <div>Assigned to: {incident.tasks[0].assignedTo.username || "Unknown"}</div>
+                    <div>Deadline: {new Date(incident.tasks[0].deadline).toLocaleDateString()}</div>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => handleOpenTaskAssignmentModal(incident._id)}
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded transition duration-150"
+                  >
+                    Assign Task
+                  </button>
+                )}
+              </td>
+              <td className="border p-2">
+                <div className="flex space-x-2 items-center">
+                  <button
+                    onClick={() => handleViewIncident(incident._id)}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded transition duration-150 shadow-sm"
+                  >
+                    View
+                  </button>
+                  {/* Severity Dropdown */}
+                  <select
+                    value={selectedSeverity[incident._id] || incident.severity}
+                    onChange={(e) =>
+                      handleSeverityChange(incident._id, e.target.value)
+                    }
+                    className={`rounded px-2 py-1 border ${
+                      severityColors[
+                        selectedSeverity[incident._id] || incident.severity
+                      ]
+                    } shadow-sm`}
+                  >
+                    <option value="Low" className="text-green-600">
+                      Low
+                    </option>
+                    <option value="Medium" className="text-orange-500">
+                      Medium
+                    </option>
+                    <option value="High" className="text-red-600">
+                      High
+                    </option>
+                  </select>
+                  {/* Escalation Dropdown */}
+                  <Menu as="div" className="relative inline-block text-left">
+                    <Menu.Button className="bg-gray-300 hover:bg-gray-400 text-black px-3 py-1 rounded transition duration-150 shadow-sm">
+                      Escalate ▼
+                    </Menu.Button>
+                    <Menu.Items 
+                    anchor="bottom" 
+                    transition 
+                    className="absolute right-0 mt-2 w-56 origin-top-right bg-white border border-gray-300 rounded shadow-lg z-10 transition duration-200 ease-out data-[closed]:scale-95 data-[closed]:opacity-0">
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? "bg-gray-100" : ""
+                            } px-4 py-2 w-full text-left`}
+                            onClick={() =>
+                              handleEscalation(
+                                incident._id,
+                                "Safeguarding Team"
+                              )
+                            }
+                          >
+                            Safeguarding Team
+                          </button>
+                        )}
+                      </Menu.Item>
+                      <MenuSeparator className="my-1 h-px bg-black" />
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? "bg-gray-100" : ""
+                            } px-4 py-2 w-full text-left`}
+                            onClick={() =>
+                              handleEscalation(incident._id, "Investigation")
+                            }
+                          >
+                            Investigation
+                          </button>
+                        )}
+                      </Menu.Item>
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? "bg-gray-100" : ""
+                            } px-4 py-2 w-full text-left`}
+                            onClick={() =>
+                              handleEscalation(incident._id, "CMT Review")
+                            }
+                          >
+                            CMT Review
+                          </button>
+                        )}
+                      </Menu.Item>
+                    </Menu.Items>
+                  </Menu>
                 </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      {/* Task Assignment Modal */}
+      <TaskAssignmentModal
+        isOpen={modalOpenTaskAssignment}
+        onClose={handleCloseModal}
+        onTaskAssigned={handleTaskAssigned}
+        incidentId={selectedIncident}
+      />
+
+      {/* Pagination */}
 
       <div className="mt-4 flex justify-between">
         <button

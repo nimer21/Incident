@@ -11,7 +11,11 @@ const UserSchema = new mongoose.Schema({
         sparse: true, // Allows multiple documents with null values for email
       },
     password: { type: String, required: true },// Ensure passwords are hashed
-    role: { type: String, default: "user", enum: ["super_admin", "asset_safeguarding", "child_safeguarding", "youth_adult", "data_breach","user"], required: true },
+    role: { type: String, default: "user", enum: ["super_admin", "asset_safeguarding", "child_safeguarding", "youth_adult", "data_breach","user", "Leader", "Assignee"], required: true },
+    permissions: { 
+        type: Map, 
+        of: String, // "read-only" or "edit"
+        },
     createdAt: { type: Date, default: Date.now },
     incidents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Incident' }], // Array of linked incidents
 });
