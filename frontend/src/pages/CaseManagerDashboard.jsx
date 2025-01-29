@@ -27,33 +27,36 @@ const CaseManagerDashboard = ({ user }) => {
 
   const [selectedSeverity, setSelectedSeverity] = useState({});
 
-  useEffect(() => {
-    const fetchIncidentsWithTasks = async () => {
-      try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/incidents/get-incidents`, {
-          //params: { search, category, page: 1, limit: 10 },
-          params: { search, page, limit: 10 },
-          withCredentials: true, // Send cookies for authentication
-        });
-        setIncidents(response?.data.incidentsWithTasks);
-        setTotalPages(response.data.pages); // Use this for pagination control
-        setStats({
-          total: response.data.total,
-          newReports: response.data.newReports || 0,
-          activeReminders: response.data.activeReminders || 0,
-        });
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching incidents:", error);
-        setLoading(false);
-      }
-    };
-
-    fetchIncidentsWithTasks();
-  }, [search, page]);
+  const fetchIncidentsWithTasks = async () => {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/incidents/get-incidents`, {
+        //params: { search, category, page: 1, limit: 10 },
+        params: { search, page, limit: 10 },
+        withCredentials: true, // Send cookies for authentication
+      });
+      setIncidents(response?.data.incidentsWithTasks);
+      setTotalPages(response.data.pages); // Use this for pagination control
+      setStats({
+        total: response.data.total,
+        newReports: response.data.newReports || 0,
+        activeReminders: response.data.activeReminders || 0,
+      });
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching incidents:", error);
+      setLoading(false);
+    }
+  };
 
   const handleViewIncident = async (id) => {
     try {
+      // Mark incident as viewed
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/incidents/${id}/mark-viewed`,
+        {},
+        { withCredentials: true }
+      );
+
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/incidents/get-incident/${id}`,
         {
@@ -62,10 +65,21 @@ const CaseManagerDashboard = ({ user }) => {
       );
       setSelectedIncident(response.data);
       setModalOpen(true);
+      // Refresh incidents data to update new reports count
+      fetchIncidentsWithTasks();
     } catch (error) {
       console.error("Error fetching incident details:", error);
       toast.error(error?.response?.data?.message);
     }
+  };
+
+  // Update table row styling to highlight new incidents
+  const getRowClassName = (incident) => {
+    const isNew = !incident.viewedBy?.some(
+      view => view?.userId === user?.user?.userId
+    );
+    return `hover:bg-gray-50 transition duration-150 ease-in-out
+      ${isNew ? 'bg-blue-50' : ''}`;
   };
 
   const handleSeverityChange = async (incidentId, severity) => {
@@ -95,10 +109,14 @@ const CaseManagerDashboard = ({ user }) => {
   };
 
     // Close modal
-    const handleCloseModal = () => {
+  const handleCloseModal = () => {
       setSelectedIncident(null);
       setModalOpen(false);
     };
+
+  useEffect(() => {
+      fetchIncidentsWithTasks();
+    }, [search, page]);
 
   if (loading) {
     return <p>Loading...</p>;
@@ -210,7 +228,8 @@ const CaseManagerDashboard = ({ user }) => {
         {incidents?.map((incident) => (
           <tr
             key={incident._id}
-            className="hover:bg-gray-50 transition duration-150 ease-in-out"
+            // className="hover:bg-gray-50 transition duration-150 ease-in-out"
+            className={getRowClassName(incident)}
           >
             <td className="border p-3">{incident.caseReference}</td>
             <td className="border p-3 whitespace-nowrap text-ellipsis overflow-hidden max-w-52">{incident.subject}</td>

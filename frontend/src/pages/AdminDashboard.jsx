@@ -4,9 +4,12 @@ import useAuthContext from "../context/AuthContext";
 import IncidentDetailsModal from "../components/IncidentDetailsModal";
 import { toast } from "react-toastify";
 import CreateUserModal from "../components/CreateUserModal";
-import axiosInstance from "../api/axiosInstance";
 import { Menu, MenuSeparator } from "@headlessui/react";
 import TaskAssignmentModal from "../components/TaskAssignmentModal";
+import Spinner from "../components/Spinner";
+import { Link } from "react-router-dom";
+import CaseClosureModal from "../components/CaseClosureModal";
+import InitialReportModal from "../components/InitialReportModal";
 
 const severityColors = {
   Low: "text-green-600",
@@ -24,7 +27,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const { logout } = useAuthContext();
+  const { logout, user } = useAuthContext();
   const [selectedSeverity, setSelectedSeverity] = useState({});
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "" });
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,6 +36,47 @@ const AdminDashboard = () => {
   const [tasks, setTasks] = useState({}); // Track assigned tasks
 
   //const token = sessionStorage.getItem("token");
+
+  // Replace the existing report modal state and handlers with:
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [selectedReportType, setSelectedReportType] = useState("");
+  const [selectedIncidentForReport, setSelectedIncidentForReport] =
+    useState(null);
+  const [reportData, setReportData] = useState(null);
+
+  // Handle report selection
+  const handleReportSelection = async (
+    incidentId,
+    caseReference,
+    reportType
+  ) => {
+    setSelectedReportType(reportType);
+    setSelectedIncidentForReport({ id: incidentId, caseReference });
+
+    try {
+      const response = await axios.get(
+        `${
+          import.meta.env.VITE_API_URL
+        }/api/reports/${incidentId}/${reportType}`,
+        { withCredentials: true }
+      );
+      setReportData(response.data.report || null); // Null if no data exists
+      setIsReportModalOpen(true);
+    } catch (error) {
+      if (error.response?.status === 404) {
+        // If no data exists (If no existing report), show empty placeholders (open modal with empty form)
+        setReportData(null);
+        setIsReportModalOpen(true);
+      } else {
+        console.error("Error fetching report data:", error);
+        toast.error(
+          error.response?.data?.message ||
+            error.message ||
+            "Failed to fetch report data."
+        );
+      }
+    }
+  };
 
   const fetchIncidentsWithTasks = async () => {
     try {
@@ -50,7 +94,7 @@ const AdminDashboard = () => {
       //     `http://localhost:5005/api/incidents/get-incidents?search=${searchTerm}&category=${category}&page=${page}&limit=10`
       // );
 
-      setIncidents(response?.data.incidentsWithTasks );
+      setIncidents(response?.data.incidentsWithTasks);
       setTotalPages(response.data.pages); // Use this for pagination control
       setStats({
         total: response.data.total,
@@ -84,20 +128,15 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleEscalation = async (incidentId, escalationLevel) => {
-    try {
-      await axiosInstance.patch(`/api/incidents/${incidentId}/escalate`, {
-        status: escalationLevel,
-      });
-      toast.success(`Incident escalated to ${escalationLevel}`);
-    } catch (error) {
-      console.error("Error escalating incident:", error);
-      alert("Failed to escalate incident.");
-    }
-  };
-
   const handleViewIncident = async (id) => {
     try {
+      // Mark incident as viewed
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/incidents/${id}/mark-viewed`,
+        {},
+        { withCredentials: true }
+      );
+      // Fetch updated incident details
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/incidents/get-incident/${id}`,
         {
@@ -106,10 +145,21 @@ const AdminDashboard = () => {
       );
       setSelectedIncident(response.data);
       setModalOpen(true);
+      // Refresh incidents data to update new reports count
+      fetchIncidentsWithTasks();
     } catch (error) {
       console.error("Error fetching incident details:", error);
       toast.error(error?.response?.data?.message);
     }
+  };
+
+  // Update table row styling to highlight new incidents
+  const getRowClassName = (incident) => {
+    const isNew = !incident.viewedBy?.some(
+      (view) => view?.userId === user?.user?.userId
+    );
+    return `hover:bg-gray-50 transition duration-150 ease-in-out
+      ${isNew ? "bg-blue-50" : ""}`;
   };
 
   const handleOpenTaskAssignmentModal = (incidentId) => {
@@ -120,14 +170,20 @@ const AdminDashboard = () => {
   const handleTaskAssigned = (incidentId, taskDetails) => {
     setTasks((prevTasks) => ({
       ...prevTasks,
-      [incidentId]: {...taskDetails},
+      [incidentId]: { ...taskDetails },
     }));
-    //console.log("Task assigned:", taskDetails);    
-    toast.success(`Task assigned to ${taskDetails.assignedToName} By ${taskDetails.assignedByName} with deadline ${new Date(taskDetails.task.deadline).toLocaleDateString()}`);
+    //console.log("Task assigned:", taskDetails);
+    toast.success(
+      `Task assigned to ${taskDetails.assignedToName} By ${
+        taskDetails.assignedByName
+      } with deadline ${new Date(
+        taskDetails.task.deadline
+      ).toLocaleDateString()}`
+    );
     // Update the incident's status to "Task Assigned"
     //handleEscalation(incidentId, "Task Assigned");
     // Update the incident's tasks array with the new task details
-        // await updateTasks(incidentId, taskDetails);
+    // await updateTasks(incidentId, taskDetails);
   };
 
   const handleCloseModal = () => {
@@ -150,7 +206,8 @@ const AdminDashboard = () => {
   }, [search, category, page, tasks]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    // return <divv>Loading...</divv>;
+    return <Spinner />;
   }
 
   return (
@@ -271,23 +328,34 @@ const AdminDashboard = () => {
           {incidents?.map((incident) => (
             <tr
               key={incident._id}
-              className="hover:bg-gray-100 transition duration-150 ease-in-out"
+              // className="hover:bg-gray-100 transition duration-150 ease-in-out"
+              className={getRowClassName(incident)}
             >
               <td className="border p-2">{incident.caseReference}</td>
-              <td className="border p-2 whitespace-nowrap text-ellipsis overflow-hidden max-w-52">{incident.subject}</td>
+              <td className="border p-2 whitespace-nowrap text-ellipsis overflow-hidden max-w-52">
+                {incident.subject}
+              </td>
               <td className="border p-2">{incident.category}</td>
               <td className="border p-2">
                 {new Date(incident.createdAt).toLocaleDateString()}
               </td>
               <td className="border p-2">
                 {/* Task Assignment Button */}
-                {incident.tasks?.length > 0 ? ( //  && incident.tasks[0] 
+                {incident.tasks?.length > 0 ? ( //  && incident.tasks[0]
                   <>
                     {/* <div>Assigned to: {tasks[incident._id].assignee}</div>
                     <div>Deadline: {tasks[incident._id].deadline}</div> */}
                     {/* <div>Assigned to: {incident.tasks[0].assignedToName || "Unknown"}</div> */}
-                    <div>Assigned to: {incident.tasks[0].assignedTo.username || "Unknown"}</div>
-                    <div>Deadline: {new Date(incident.tasks[0].deadline).toLocaleDateString()}</div>
+                    <div>
+                      Assigned to:{" "}
+                      {incident.tasks[0].assignedTo.username || "Unknown"}
+                    </div>
+                    <div>
+                      Deadline:{" "}
+                      {new Date(
+                        incident.tasks[0].deadline
+                      ).toLocaleDateString()}
+                    </div>
                   </>
                 ) : (
                   <button
@@ -328,29 +396,34 @@ const AdminDashboard = () => {
                       High
                     </option>
                   </select>
-                  {/* Escalation Dropdown */}
+
+                  {/* // Replace the existing report modal JSX with: */}
+
+                  {/* Assessment Reports Dropdown */}
                   <Menu as="div" className="relative inline-block text-left">
                     <Menu.Button className="bg-gray-300 hover:bg-gray-400 text-black px-3 py-1 rounded transition duration-150 shadow-sm">
-                      Escalate ▼
+                      Assessment Reports ▼
                     </Menu.Button>
-                    <Menu.Items 
-                    anchor="bottom" 
-                    transition 
-                    className="absolute right-0 mt-2 w-56 origin-top-right bg-white border border-gray-300 rounded shadow-lg z-10 transition duration-200 ease-out data-[closed]:scale-95 data-[closed]:opacity-0">
+                    <Menu.Items
+                      anchor="bottom"
+                      transition
+                      className="absolute right-0 mt-2 w-56 origin-top-right bg-white border border-gray-300 rounded shadow-lg z-10 transition duration-200 ease-out data-[closed]:scale-95 data-[closed]:opacity-0"
+                    >
                       <Menu.Item>
                         {({ active }) => (
                           <button
                             className={`${
                               active ? "bg-gray-100" : ""
                             } px-4 py-2 w-full text-left`}
-                            onClick={() =>
-                              handleEscalation(
+                            onClick={(e) =>
+                              handleReportSelection(
                                 incident._id,
-                                "Safeguarding Team"
+                                incident.caseReference,
+                                "InitialReport"
                               )
                             }
                           >
-                            Safeguarding Team
+                            Initial Report
                           </button>
                         )}
                       </Menu.Item>
@@ -362,13 +435,18 @@ const AdminDashboard = () => {
                               active ? "bg-gray-100" : ""
                             } px-4 py-2 w-full text-left`}
                             onClick={() =>
-                              handleEscalation(incident._id, "Investigation")
+                              handleReportSelection(
+                                incident._id,
+                                incident.caseReference,
+                                "FullAssessment"
+                              )
                             }
                           >
-                            Investigation
+                            Full Assessment
                           </button>
                         )}
                       </Menu.Item>
+                      <MenuSeparator className="my-1 h-px bg-black" />
                       <Menu.Item>
                         {({ active }) => (
                           <button
@@ -376,15 +454,44 @@ const AdminDashboard = () => {
                               active ? "bg-gray-100" : ""
                             } px-4 py-2 w-full text-left`}
                             onClick={() =>
-                              handleEscalation(incident._id, "CMT Review")
+                              handleReportSelection(
+                                incident._id,
+                                incident.caseReference,
+                                "Action Plan"
+                              )
                             }
                           >
-                            CMT Review
+                            Action Plan
+                          </button>
+                        )}
+                      </Menu.Item>
+                      <MenuSeparator className="my-1 h-px bg-black" />
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? "bg-gray-100" : ""
+                            } px-4 py-2 w-full text-left`}
+                            onClick={() =>
+                              handleReportSelection(
+                                incident._id,
+                                incident.caseReference,
+                                "CaseClosure"
+                              )
+                            }
+                          >
+                            Case Closure
                           </button>
                         )}
                       </Menu.Item>
                     </Menu.Items>
                   </Menu>
+                  <Link
+                    to={`/report-page/${incident._id}`}
+                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded transition duration-150 shadow-sm"
+                  >
+                    Report Page
+                  </Link>
                 </div>
               </td>
             </tr>
@@ -398,6 +505,40 @@ const AdminDashboard = () => {
         onTaskAssigned={handleTaskAssigned}
         incidentId={selectedIncident}
       />
+
+      {isReportModalOpen && (
+        <>
+          {selectedReportType === "InitialReport" && (
+            <InitialReportModal
+              isOpen={isReportModalOpen}
+              onClose={() => {
+                setIsReportModalOpen(false);
+                setSelectedReportType("");
+                setSelectedIncidentForReport(null);
+                setReportData(null);
+              }}
+              incidentId={selectedIncidentForReport?.id}
+              caseReference={selectedIncidentForReport?.caseReference}
+              reportData={reportData}
+            />
+          )}
+          {selectedReportType === "CaseClosure" && (
+            <CaseClosureModal
+              isOpen={isReportModalOpen}
+              onClose={() => {
+                setIsReportModalOpen(false);
+                setSelectedReportType("");
+                setSelectedIncidentForReport(null);
+                setReportData(null);
+              }}
+              incidentId={selectedIncidentForReport?.id}
+              caseReference={selectedIncidentForReport?.caseReference}
+              reportData={reportData}
+            />
+          )}
+          {/* Add similar conditions for other report types */}
+        </>
+      )}
 
       {/* Pagination */}
 

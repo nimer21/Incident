@@ -130,6 +130,22 @@ const incidentSchema = new mongoose.Schema({
           timestamp: { type: Date, default: Date.now },
         },
       ],
+      status: { type: String, enum: ['Pending', 'In Progress', 'Closed'], default: 'Pending' },
+      
+      isNew: {
+        type: Boolean,
+        default: true  // All incidents start as new/unread
+      },
+      viewedBy: [{
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User'
+        },
+        viewedAt: {
+          type: Date,
+          default: Date.now
+        }
+      }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Incident', incidentSchema);

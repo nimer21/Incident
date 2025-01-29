@@ -10,7 +10,7 @@ const CategorySelection = () => {
   const categories = [
     "Asset Safeguarding",
     "Child Safeguarding",
-    "Youth & Adult",
+    "Youth Adult",
     "Data Breach",
   ];
 

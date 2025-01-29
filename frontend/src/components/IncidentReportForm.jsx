@@ -90,8 +90,8 @@ const handleCloseClick = () => {
   // }
 
     // Append userId directly
-    if (user) {
-        dataToSubmit.append("user", user.userId);
+    if (user.user) {
+        dataToSubmit.append("user", user.user.userId);
     }
     try {
       const response = await axiosInstance.post(

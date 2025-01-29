@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   user: null,
-  role: null,
+  //role: null,
 };
 
 const userSlice = createSlice({
@@ -15,9 +15,9 @@ const userSlice = createSlice({
     clearUser: (state) => {
       state.user = null;
     },
-    setRole: (state, action) => {
-      state.role = action.payload;
-    },
+    // setRole: (state, action) => {
+    //   state.role = action.payload;
+    // },
   },
 });
 

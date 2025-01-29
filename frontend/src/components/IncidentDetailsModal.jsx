@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import axiosInstance from "../api/axiosInstance";
+import { useReactToPrint } from "react-to-print";
 
 const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }) => {
     const [newComment, setNewComment] = useState("");
@@ -8,6 +9,18 @@ const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }
     const [uploadProgress, setUploadProgress] = useState(0);
     const [attachments, setAttachments] = useState(Array.isArray(selectedIncident?.fileAttachment) ? selectedIncident.fileAttachment : []);
 
+    const componentRef = useRef();
+
+    const [previewImage, setPreviewImage] = useState(null);
+
+    const handlePreview = (filePath) => {
+      const fullPath = `${import.meta.env.VITE_API_URL}/backend/${filePath}`;
+      setPreviewImage(fullPath);
+    };
+  
+    const closePreview = () => {
+      setPreviewImage(null);
+    };
     const handleAddComment = async () => {
         if (!newComment.trim()) return;
       
@@ -46,6 +59,7 @@ const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }
         try {
             const response = await axiosInstance.post("/api/incidents/upload", formData, {
             withCredentials: true, // Include cookies in requests
+            timeout: 50000, // Set timeout to 10 seconds
             headers: { "Content-Type": "multipart/form-data" },
             onUploadProgress: (progressEvent) => {
               const percentCompleted = Math.round(
@@ -70,9 +84,20 @@ const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }
         }9
       };
   // Print incident details as PDF
-    const handlePrint = () => {
-    window.print();
-  };
+  //   const handlePrint = () => {
+  //   window.print();
+  // };
+  const handlePrint = useReactToPrint({
+    contentRef: componentRef, // Directly pass the ref here
+    documentTitle: `Incident-${selectedIncident.caseReference}`,
+    onBeforeGetContent: () => {
+      console.log("Preparing document for printing...");
+    },
+    onAfterPrint: () => {
+      console.log("Document printed successfully!");
+    },
+  });  
+
 
   //Step 4: Sync State with Backend on Refresh
   //If the page is refreshed, reload the attachments from selectedIncident.fileAttachment: This ensures the state is consistent even after a page reload.
@@ -101,7 +126,7 @@ const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }
       </div>
   
       {/* Modal Body */}
-      <div className="max-h-[75vh] overflow-y-auto pr-2 p-4 space-y-6">
+      <div ref={componentRef} className="max-h-[75vh] overflow-y-auto pr-2 p-4 space-y-6">
         {/* Incident Details Section */}
         <div className="border rounded-lg p-4 shadow-md">
           <h3 className="text-lg font-semibold mb-2">Incident Information</h3>
@@ -200,10 +225,14 @@ const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }
             {attachments.map((file, index) => (
               <li key={index}>
                 <a
-                  href={`/${file}`}
+                  href={`${import.meta.env.VITE_API_URL}/backend/${file}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-500 hover:underline"
+                  onClick={(e) => {
+                    console.log("Opening file:", e.target.href);
+                    handlePreview(file);
+                  }}
                 >
                   {file.split(/[/\\]/).pop()}
                 </a>
@@ -212,8 +241,26 @@ const IncidentDetailsModal = ({ selectedIncident, setSelectedIncident, onClose }
           </ul>
         ) : (
           <p>No attachments available.</p>
-        )}          
-
+        )}
+        {/* Preview Section */}
+        {/* Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-4 relative">
+            <button
+              onClick={closePreview}
+              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+            >
+              ×
+            </button>
+            <img
+              src={previewImage}
+              alt="Preview"
+              className="max-w-full max-h-screen rounded"
+            />
+          </div>
+        </div>
+      )}
   
           {/* Upload Section */}
           <div className="mt-4 p-4 bg-gray-100 rounded">

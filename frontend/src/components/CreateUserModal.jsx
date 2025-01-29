@@ -23,7 +23,7 @@ const CreateUserModal = ({ isOpen, onClose }) => {
     } catch (error) {
       console.error("Error creating user:", error);
       //alert("Failed to create user "+error.response?.data);
-      toast.error("Failed to create user. "+error.response.data.error);
+      toast.error(error.response?.data.message || error.message);
     }
   };
 

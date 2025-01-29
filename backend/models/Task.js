@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const TaskSchema = new mongoose.Schema({
   title: String,
+  description: String,
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Assignee
   assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Assignor
   incidentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Incident' }, // Reference to the related incident

@@ -4,6 +4,7 @@ import axiosInstance from "../api/axiosInstance";
 const TaskAssignmentModal = ({ isOpen, onClose, onTaskAssigned, incidentId }) => {
     const initialTaskState = {
         title: "",
+        description: "",
         assignedTo: "", // Initially empty; should match a valid user ID when selected
         deadline: "",
         accessLevel: "read-only",
@@ -42,6 +43,7 @@ const TaskAssignmentModal = ({ isOpen, onClose, onTaskAssigned, incidentId }) =>
     // Prepare task data
     const taskData = {
       title: task.title,
+      description: task.description, // No need to sanitize this input as it's just a text field
       assignedTo: task.assignedTo, // This should be a valid user ID
       deadline: (new Date(task.deadline)).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -89,6 +91,16 @@ const TaskAssignmentModal = ({ isOpen, onClose, onTaskAssigned, incidentId }) =>
               className="w-full px-3 py-2 border rounded"
               placeholder="Enter task title"
               required
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2">Task Description:</label>
+            <textarea
+              type="text"
+              value={task.description}
+              onChange={(e) => setTask({ ...task, description: e.target.value })}
+              className="w-full px-3 py-2 border rounded"
+              placeholder="Enter task description"
             />
           </div>
           <div className="mb-4">

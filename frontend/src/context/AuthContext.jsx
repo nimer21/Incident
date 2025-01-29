@@ -2,13 +2,15 @@ import { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { clearUser, setUser } from "../redux/slices/userSlice";
 
 const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
-  //const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const user = useSelector((state) => state.user.user);
+  const [authUser, setAuthUser] = useState(null);
   const [errors, setErrors] = useState([]);
   const navigate = useNavigate();
   const dispatch = useDispatch(); // Hook to dispatch actions
@@ -18,19 +20,20 @@ export const AuthProvider = ({ children }) => {
   let sessionTimer;
 
   const startSessionTimer = () => {
-    console.log("Starting session timer...");
+    //console.log("Starting session timer...");
     sessionTimer = setTimeout(() => {
-      //console.log("Session expired, logging out...");
-      toast.success("Session expired, logging out...📤"); //
-      logout();
-      //navigate("/");
-      /**
-       * Check Navigation Logic:
-Ensure that navigation happens after the logout process is complete.
-You may want to navigate only after confirming that the logout was successful.
-       */
+      //toast.success("Session expired, logging out...📤"); //
+      //logout();
+      console.log("logouting due to session timer...sessionTimer= ", sessionTimer);
     }, sessionTimeout);
   };
+
+  useEffect(() => {
+    // Simulate checking session/token (can be replaced with actual API logic)
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 500); // Simulated delay
+  }, [user]);
 
   useEffect(() => {
     const resetSessionTimer = () => {
@@ -84,26 +87,25 @@ You may want to navigate only after confirming that the logout was successful.
           withCredentials: true, // Include cookies in requests
         }
       );
-      // Extract user data from response
+      // Extract user data from response | Fetch user data after login
       const { message, user } = response.data;
-      // Fetch user data after login
-      //setUser(user); // Set user details after login
-      //dispatch(setUser(user)); // Update Redux store
       const userData = { userId: user._id, role: user.role };
-      dispatch(setUser(userData)); // Store user in Redux
-      //dispatch(setUser(response.data.user._id)); // Store user in Redux
+      setAuthUser(userData); // Set user details after login
+      dispatch(setUser(userData)); // Store user in Redux // Update Redux store
+      // Store user data in session storage for persistent login | Store user object as a string in sessionStorage
+      sessionStorage.setItem("authUser", JSON.stringify(userData));
       toast.success(message);
       startSessionTimer();
       // Navigate based on role
-      if (user.role === "super_admin") {
-        navigate("/admin-dashboard");
-      } else if (user.role === "user") {
-        navigate(`/user-dashboard`);
-      } else {
-        navigate("/"); // Default or error handling
-      }
+      // if (user.role === "super_admin") {
+      //   navigate("/admin-dashboard");
+      // } else if (user.role === "user") {
+      //   navigate(`/user-dashboard`);
+      // } else {
+      //   navigate("/"); // Default or error handling
+      // }
     } catch (error) {
-      toast.error(error.response?.data?.error || "Unknown error"); //
+      toast.error(error.response?.data?.error || error?.message || "Unknown error"); //
       //setErrors(error.response?.data?.error+ ": " + error.response.status);
       console.error(error);
 
@@ -131,6 +133,11 @@ You may want to navigate only after confirming that the logout was successful.
 
   const logout = async () => {
     try {
+      dispatch(clearUser()); // Clear Redux store
+      setAuthUser(null); // Clear user details on logout
+      sessionStorage.removeItem("authUser");
+      //navigate("/"); // Navigate after clearing user
+      navigate("/login", { replace: true });
       //const token = sessionStorage.getItem("token");
 
       const responseLogout = await axios.post(
@@ -144,20 +151,54 @@ You may want to navigate only after confirming that the logout was successful.
           // },
         }
       );
-      //console.log('Logout successful:', responseLogout.data.message);
       toast.success(responseLogout.data.message);
-      //setUser(null); // Clear user details on logout
-      dispatch(clearUser()); // Clear Redux store
-      navigate("/"); // Navigate after clearing user
     } catch (error) {
       console.error("Logout error:", error.response.data.message);
       toast.error(error.response.data.message);
       navigate("/"); // Navigate in case of error as well
+      if (error.response.status === 401) {
+      sessionStorage.removeItem("authUser");
+      sessionStorage.clear();
+      navigate("/login");        
+      }
     }
   };
 
+  useEffect(() => {
+   
+    if (!authUser) {      
+      // Retrieve the user object from sessionStorage
+        const storedUser = JSON.parse(sessionStorage.getItem("authUser"));
+
+      if (storedUser) {
+        //console.log("storedUser: ", storedUser); // Access user properties
+        setAuthUser(storedUser);
+      } else {
+        //console.log('No user found in sessionStorage');
+      }
+    }
+  }, []);
+
+  /**Suggested Approach for Automatic Logout
+   * To enhance user experience and security, implement a token expiration check on the frontend:
+   * const decodeToken = (token) => {
+  const payload = JSON.parse(atob(token.split(".")[1]));
+  return payload.exp * 1000; // Convert to milliseconds
+};
+const token = sessionStorage.getItem("authToken");
+const tokenExpiration = decodeToken(token);
+
+// Check token expiration
+const isExpired = Date.now() > tokenExpiration;
+if (isExpired) {
+  alert("Your session has expired. Logging out.");
+  logout(); // Trigger logout logic
+}
+
+   */
+
   return (
-    <AuthContext.Provider value={{ errors, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, errors, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

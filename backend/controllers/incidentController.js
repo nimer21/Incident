@@ -22,18 +22,27 @@ const transporter = nodemailer.createTransport({
     },
   });
 
+  const categoryToRoleMap = {
+    'Asset Safeguarding': 'asset_safeguarding',
+    'Child Safeguarding': 'child_safeguarding',
+    'Youth Adult': 'youth_adult',
+    'Data Breach': 'data_breach',
+};
+
+
 exports.reportIncident = async (req, res) => {
     try {
-        const incidentData = req.body;
-        console.log("req.body: ", req.body);
-        if (req.file) {
-            incidentData.fileAttachment = req.file.path; // Attach file path
-        }
-        // Generate a case reference
-        incidentData.caseReference = generateCaseReference(); // Generate case reference
-        const incident = new Incident(incidentData);
-        await incident.save();
+      const incidentData = req.body;
+      console.log("req.body: ", req.body);
+      if (req.file) {
+        incidentData.fileAttachment = req.file.path; // Attach file path
+      }
+      // Generate a case reference
+      incidentData.caseReference = generateCaseReference(); // Generate case reference
+      const incident = new Incident(incidentData);
+      await incident.save();
 
+      /*******************************************************************
          // Fetch case managers
         const caseManagers = await User.find({
         role: { $in: ['asset_safeguarding', 'child_safeguarding', 'youth_adult', 'data_breach'] },
@@ -44,54 +53,109 @@ exports.reportIncident = async (req, res) => {
         // if (!emails.length) {
         //     throw new Error("No case managers found");
         // }
-//****************************************************************** */
-        // // Create tasks for case managers
-        // const tasks = caseManagers.map(manager => ({
-        //     title: `Assign Task for Incident ${incidentData.caseReference}`,
-        //     assignedTo: manager._id,
-        //     deadline: incidentData.deadline,
-        //     incident: incident._id,
-        // }));
+        ********************************************************************/
 
-        //await Task.insertMany(tasks);
-//******************************************************************
-        // Send email notification to admin
-       if (emails.length > 0) {
-                   const mailOptions = {
-                       from: process.env.EMAIL_USER,
-                       to: emails, // Use the array of emails
-                       subject: `New ${req.body.category} Incident Reported: ${req.body.subject}`,
-                       text: `Hello,\n\nA new incident has been reported with the following details:\n\nTitle: ${req.body.subject}\nDescription: ${req.body.incidentDescription}\nLocation: ${req.body.programLocation}\n\nPlease login to review the incident.`,
-                   };
-       
-                   transporter.sendMail(mailOptions, (error, info) => {
-                       if (error) {
-                           console.error('Error sending email:', error);
-                       } else {
-                           console.log(`Email sent to ${emails.join(', ')}:`, info.response);
-                       }
-                   });
-               }
-  
-      // Update incident's notifiedManagers field
-      incident.notifiedManagers = true;
-        await incident.save();
+      // Map the category to the corresponding role
+      const categoryRole = categoryToRoleMap[req.body.category];
+      if (!categoryRole) {
+        return res.status(400).json({ error: "Invalid category specified" });
+      }
 
-        // Link the incident to the user's account
-        await User.findByIdAndUpdate(
-            incidentData.user,
-            { $push: { incidents: incident._id } }, // Add the incident to the user's list //savedIncident
-            { new: true }
-        );
+      // Find the super admin
+      const superAdmin = await User.findOne({ role: "super_admin" });
 
-        /*if (incidentData.userId) {
-            // Link the incident to the user's account
-            console.log(" if (incidentData.userId) => ",incidentData);
-            await User.findByIdAndUpdate(incidentData.userId, { $push: { incidents: incident._id } });//{ new: true }
-        }*/
+      /*
+        let mapedRole = null;
+        // Filter incidents based on the role
+        if (req.body.category === "Asset Safeguarding") {
+            mapedRole = "asset_safeguarding";
+          } else if (req.body.category === "Child Safeguarding") {
+            mapedRole = "child_safeguarding";
+          } else if (req.body.category === "Youth Adult") {
+            mapedRole = "youth_adult";
+          } else if (req.body.category === "Data Breach") {
+            mapedRole = "data_breach";
+          }
+            */
 
-        res.status(201).json({ message: 'Incident reported successfully!',
-            caseReference: incident.caseReference, incedent_id: incident._id });
+      // Find the case manager for the selected category
+      // Find the case manager for the mapped role
+      const caseManager = await User.findOne({
+        role: categoryRole, // Category should map to role names like 'asset_safeguarding'
+      });
+
+      // Combine emails of super admin and case manager
+      const emails = [superAdmin?.email, caseManager?.email].filter(Boolean);
+
+      //****************************************************************** */
+      // // Create tasks for case managers
+      // const tasks = caseManagers.map(manager => ({
+      //     title: `Assign Task for Incident ${incidentData.caseReference}`,
+      //     assignedTo: manager._id,
+      //     deadline: incidentData.deadline,
+      //     incident: incident._id,
+      // }));
+
+      //await Task.insertMany(tasks);
+      //******************************************************************
+      // Send email notification to admin
+      if (emails.length > 0) {
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: emails, // Use the array of emails
+          subject: `New ${req.body.category} Incident Reported: ${req.body.subject}`,
+          text: `Hello,\n\nA new incident has been reported with the following details:\n\nTitle: ${req.body.subject}\nDescription: ${req.body.incidentDescription}\nLocation: ${req.body.programLocation}\n\nPlease login to review the incident.`,
+        };
+
+        transporter.sendMail(mailOptions, (error, info) => {
+          if (error) {
+            console.error("Error sending email:", error);
+            // Optionally log or track the error for later retries
+          } else {
+            console.log(`Email sent to ${emails.join(", ")}:`, info.response);
+
+            // Mark the incident as notified
+            // Use an async function to handle saving the incident
+            (async () => {
+              try {
+                // Update incident's notifiedManagers field
+                // Mark incident as notified
+                incident.notifiedManagers = true;
+                await incident.save(); // Save the updated incident only after successful email delivery
+                console.log("Incident marked as notified.");
+                // Update the incident's status to "In Progress" if it's not already in progress
+                incident.status = "In Progress";
+                await incident.save();
+              } catch (saveError) {
+                console.error(
+                  "Error saving incident notification status:",
+                  saveError
+                );
+              }
+            })();
+          }
+        });
+      }
+      // Link the incident to the user's account
+      await User.findByIdAndUpdate(
+        incidentData.user,
+        { $push: { incidents: incident._id } }, // Add the incident to the user's list //savedIncident
+        { new: true }
+      );
+
+      // if (incidentData.userId) {
+      //       // Link the incident to the user's account
+      //       console.log(" if (incidentData.userId) => ",incidentData);
+      //       await User.findByIdAndUpdate(incidentData.userId, { $push: { incidents: incident._id } });//{ new: true }
+      //   }
+
+      res
+        .status(201)
+        .json({
+          message: "Incident reported successfully!",
+          caseReference: incident.caseReference,
+          incedent_id: incident._id,
+        });
     } catch (error) {
         console.error(error);
         res.status(400).json({ error: error.message });
@@ -130,11 +194,13 @@ exports.addCommentsIncident = async (req, res) => {
     // Extract user details from the request (assumes middleware sets req.user)
     const user = req.user || {};
 
-    const author = user?.role === "super_admin" 
-    ? "Admin"
-    : user?.role === "user" 
-        ? "User"
-        : "Anonymous";
+    const author = user?.role === "super_admin"
+  ? "Admin"
+  : user?.role === "user"
+    ? "User"
+    : ["asset_safeguarding", "child_safeguarding", "youth_adult", "data_breach"].includes(user?.role)
+      ? "Case Manager"
+      : "Anonymous";
 
     // Update the incident with the new comment
     const updatedIncident = await Incident.findByIdAndUpdate(
@@ -190,7 +256,7 @@ exports.registerUser = async (req, res) => {
     if (indexExists) {
       // Drop the index
       await User.collection.dropIndex('email_1');
-      console.log('Index dropped successfully.');
+      console.log('Index email_1 dropped successfully.');
       //await User.collection.createIndex({ email: 1 }, { unique: true, sparse: true });
     } else {
       console.log('Index email_1 does not exist.');
@@ -265,9 +331,10 @@ exports.loginUser = async (req, res) => {
         res.cookie("authToken", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production" && req.secure, // Adjust for local testing // Enable in production
-            sameSite: "strict",
+            sameSite: "strict", // Prevent CSRF
             //sameSite: "lax", // or "none" if you need cross-origin support
             maxAge: 3600000, // 1 hour
+            //maxAge: 24 * 60 * 60 * 1000, // 1 day expiry
         });
 
         // Return success response
@@ -385,7 +452,8 @@ exports.getIncidents = async (req, res) => {
     //const { role, category, search, page = 1, limit = 10 } = req.query;
     try {
         const { search = "", category = "", page = 1, limit = 10 } = req.query;
-         // You can filter by user if authentication is implemented
+        const userId = req.user.userId; // Assuming you have user info in request
+        // You can filter by user if authentication is implemented
          const query = {};
          // Access role from req.user
         const role = req.user.role;
@@ -417,13 +485,29 @@ exports.getIncidents = async (req, res) => {
 
         // sort in descending (-1) order by length
         const sort = { createdAt: -1 };
+    
+    // Count new/unread incidents for this user
+    const newReports = await Incident.countDocuments({
+      $and: [
+        query,
+        {
+          $or: [
+            { viewedBy: { $size: 0 } },
+            { viewedBy: { $not: { $elemMatch: { userId: userId } } } }
+          ]
+        }
+      ]
+    });
+
 
         const incidents = await Incident.find(query)
             .sort(sort)
             .skip((page - 1) * limit)
             .limit(Number(limit));
+            //.lean();
          //const incidents = await Incident.find().limit(10);
 
+         // Count total incidents
          const total = await Incident.countDocuments(query);
 
          // Fetch tasks related to these incidents
@@ -440,6 +524,7 @@ exports.getIncidents = async (req, res) => {
         res.status(200).json({
             incidentsWithTasks,
             total,
+            newReports,
             page: Number(page),
             pages: Math.ceil(total / limit),
         });
@@ -448,6 +533,30 @@ exports.getIncidents = async (req, res) => {
         console.error("Error fetching incidents:", error.message);
         res.status(500).json({ error: "Failed to fetch incidents" });       
     }
+};
+
+// 3. Add an endpoint to mark incident as viewed (controllers/incidentController.js)
+exports.markIncidentAsViewed = async (req, res) => {
+  try {
+    const { incidentId } = req.params;
+    const userId = req.user.userId;
+
+    const incident = await Incident.findById(incidentId);
+    
+    // Check if user has already viewed this incident
+    const alreadyViewed = incident?.viewedBy?.some(
+      view => view.userId.toString() === userId.toString()
+    );
+
+    if (!alreadyViewed) {
+      incident?.viewedBy?.push({ userId, viewedAt: new Date() });
+      await incident?.save();
+    }
+
+    res.status(200).json({ message: 'Incident marked as viewed' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 // Fetch full details of a specific incident
@@ -551,6 +660,9 @@ exports.createSystemUsers = async (req, res) => {
             return res.status(421).json({ error: 'Username, email and password are required' });
         }
 
+        // Force an error for testing
+        // throw new Error("Forced error for testing"); // Uncomment this line to test the catch block
+
         //const existingUser = await User.findOne({ email });
         const existingUser = await User.findOne({
             $or: [
@@ -574,7 +686,7 @@ exports.createSystemUsers = async (req, res) => {
 // Assign Task
 exports.assignIncidentTasks = async (req, res) => {
   const { incidentId } = req.params;
-  const { title, assignedTo, deadline, accessLevel } = req.body;
+  const { title, description, assignedTo, deadline, accessLevel } = req.body;
 
   try {
     if (!title ||!assignedTo ||!deadline ||!accessLevel) {
@@ -597,6 +709,7 @@ exports.assignIncidentTasks = async (req, res) => {
 
     const task = new Task({
         title,
+        description,
         assignedTo,
         assignedBy: req.user.userId,
         incidentId,

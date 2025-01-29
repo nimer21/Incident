@@ -20,7 +20,7 @@ const UserDashboard = () => {
     const fetchIncidents = async () => {
       try {
         const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/users/${user.userId}/incidents`,
+          `${import.meta.env.VITE_API_URL}/api/users/${user.user.userId}/incidents`,
           { withCredentials: true }
         );
         setIncidents(response.data);
@@ -28,7 +28,7 @@ const UserDashboard = () => {
         console.error("Error fetching incidents:", error);
       }
     };
-    if (user) {
+    if (user?.user) {
       fetchIncidents();
     } else {
       navigate("/login");

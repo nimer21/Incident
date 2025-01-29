@@ -20,19 +20,24 @@ import useAuthContext, { AuthProvider } from "./context/AuthContext";
 import { useSelector } from "react-redux";
 import CaseManagerDashboard from "./pages/CaseManagerDashboard";
 import TaskList from "./pages/TaskList";
+import Spinner from "./components/Spinner";
+import ReportPage from "./pages/ReportPage";
 
 const App = () => {
-  const user = useSelector((state) => state.user.user);
+  //const user = useSelector((state) => state.user.user);
+  const { user, isLoading } = useAuthContext();
+  
   const PrivateRoute = ({ children }) => {
-    //const { user } = useAuthContext();
-    
-    //console.log("user useSelector", user);
+    if (isLoading) {
+      // return <div>Loading...!!!</div>; // Show a spinner or loading screen
+      return <Spinner />; // Show a spinner or loading screen
+    }
     // Redirect authenticated users based on their role
-    if (user) {
-      return user?.role === "super_admin" ? (
+    if (user.user != null) {
+      return user?.user.role === "super_admin" ? (
           <Navigate to="/admin-dashboard" />
       ) : 
-      user?.role === "user" ? (
+      user?.user.role === "user" ? (
         <Navigate to="/user-dashboard" />
       ): (
         <Navigate to="/casemanager-dashboard" />
@@ -62,12 +67,18 @@ const App = () => {
         <Route path="/categor-selection" element={<CategorySelection />} />
         <Route path="/incident-form" element={<IncidentReportForm />} />
         <Route path="/submission-success" element={<SubmissionSuccess />} />
+        <Route path="/report-page/:incidentId" element={<ReportPage />} />
         <Route path="/user-dashboard" element={
             <ProtectedRoutes allowedRoles={["user"]}>
                 <UserDashboard />
             </ProtectedRoutes>
         } />
-        <Route path="/casemanager-dashboard" element={<CaseManagerDashboard user={user} />} />
+        {/* <Route path="/casemanager-dashboard" element={<CaseManagerDashboard user={user} />} /> */}
+        <Route path="/casemanager-dashboard" element={
+          <ProtectedRoutes allowedRoles={["asset_safeguarding", "child_safeguarding", "youth_adult", "data_breach"]}>
+          <CaseManagerDashboard user={user} />
+          </ProtectedRoutes>
+          } />
         <Route path="/tasks" element={<TaskList />} />
         <Route path="/admin-dashboard" element={
             <ProtectedRoutes allowedRoles={["super_admin"]}>
