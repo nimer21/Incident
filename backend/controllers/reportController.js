@@ -1,5 +1,5 @@
 const InitialReport = require("../models/InitialReport");
-const FullAssessment = require("../models/fullAssessment");
+const FullAssessment = require("../models/FullAssessment");
 const CaseClosureReport = require("../models/CaseClosureReport");
 // Import other models as needed
 

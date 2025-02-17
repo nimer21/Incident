@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { reportIncident, getIncidents, getIncidentById, updateIncidentSeverity, addCommentsIncident, fileUploadIncident, getIncidentsByRole, assignIncidentTasks, updateEscalationStatus, markIncidentAsViewed } = require('../controllers/incidentController');
+const { reportIncident, getIncidents, getIncidentById, updateIncidentSeverity, addCommentsIncident, fileUploadIncident, getIncidentsByRole, assignIncidentTasks, updateEscalationStatus, markIncidentAsViewed, clearCommentNotification, markCommentsAsViewed } = require('../controllers/incidentController');
 const { registerUser } = require('../controllers/incidentController');
 const upload = require('../middleware/fileUpload');
 const authenticateToken = require("../middleware/authMiddleware");
@@ -19,5 +19,8 @@ router.patch("/:incidentId/escalate", updateEscalationStatus);
 router.get("/get-incident/:id",authenticateToken(["super_admin","user", "data_breach"]), getIncidentById);
 
 router.post("/:incidentId/mark-viewed",authenticateToken(["user", "super_admin","asset_safeguarding", "child_safeguarding", "youth_adult", "data_breach"]), markIncidentAsViewed);
+
+//router.patch("/:id/clear-comment-notification",authenticateToken(["user", "super_admin","asset_safeguarding", "child_safeguarding", "youth_adult", "data_breach"]), clearCommentNotification);
+router.patch("/:incidentId/clear-comment-notification",authenticateToken(["user", "super_admin","asset_safeguarding", "child_safeguarding", "youth_adult", "data_breach"]), markCommentsAsViewed);
 
 module.exports = router;

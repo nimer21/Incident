@@ -16,18 +16,19 @@ const UserDashboard = () => {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
 
+  const fetchIncidents = async () => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/users/${user.user.userId}/incidents`,
+        { withCredentials: true }
+      );
+      setIncidents(response.data);
+    } catch (error) {
+      console.error("Error fetching incidents:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchIncidents = async () => {
-      try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/users/${user.user.userId}/incidents`,
-          { withCredentials: true }
-        );
-        setIncidents(response.data);
-      } catch (error) {
-        console.error("Error fetching incidents:", error);
-      }
-    };
     if (user?.user) {
       fetchIncidents();
     } else {
@@ -44,8 +45,16 @@ const UserDashboard = () => {
           withCredentials: true, // Include cookies in requests
         }
       );
+    //   // Clear the notification when the admin views the incident
+      await axios.patch(
+        `${import.meta.env.VITE_API_URL}/api/incidents/${id}/clear-comment-notification`,
+        {},
+        { withCredentials: true }
+    );
       setSelectedIncident(response.data);
       setModalOpen(true);
+      // Fetch incidents again to update UI
+      fetchIncidents();
     } catch (error) {
       console.error("Error fetching incident details:", error);
       toast.error(error?.response?.data?.message);
@@ -118,11 +127,21 @@ const UserDashboard = () => {
                     {new Date(incident.createdAt).toLocaleDateString()}
                   </td>
                   <td className="border p-2">
+                    {/* Show a notification badge if there is a new comment */}
+                  {incident.hasNewComment && (
+                    <span className="ml-2 inline-block bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                      New
+                    </span>
+                    )}
                     <button
                       onClick={() => handleViewIncident(incident._id)}
-                      className="bg-blue-500 text-white px-3 py-1 rounded transition duration-150 ease-in-out hover:bg-blue-600"
+                      className="bg-blue-500 text-white px-3 py-1 ml-2 rounded transition duration-150 ease-in-out hover:bg-blue-600 relative"
                     >
                       View Details
+                      {/* 🔴 Red dot for unread comments */}
+                      {!incident.commentViewedBy?.some(view => view?.userId === user?.user?.userId) && (
+                        <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full animate-pulse">🔔</span>
+                    )}
                     </button>
                   </td>
                 </tr>

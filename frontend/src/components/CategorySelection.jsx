@@ -12,6 +12,7 @@ const CategorySelection = () => {
     "Child Safeguarding",
     "Youth Adult",
     "Data Breach",
+    "Conflict of Interest",
   ];
 
   const handleCategorySelect = () => {

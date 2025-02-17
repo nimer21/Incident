@@ -27,6 +27,7 @@ const transporter = nodemailer.createTransport({
     'Child Safeguarding': 'child_safeguarding',
     'Youth Adult': 'youth_adult',
     'Data Breach': 'data_breach',
+    'Conflict of Interest': 'super_admin',
 };
 
 
@@ -41,6 +42,23 @@ exports.reportIncident = async (req, res) => {
       incidentData.caseReference = generateCaseReference(); // Generate case reference
       const incident = new Incident(incidentData);
       await incident.save();
+
+      let recipientEmails = [];
+
+      // Case routing logic:
+      if (req.body.category === "Conflict of Interest") {
+        // Only send to Super Admins
+        const superAdmins = await User.find({ role: "super_admin" });
+        recipientEmails = superAdmins.map(admin => admin.email);
+    } else {
+        // Send to Case Managers for other cases
+        const caseManagers = await User.find({
+            role: { 
+                $in: ["asset_safeguarding", "child_safeguarding", "youth_adult", "data_breach"]
+            }
+        });
+        recipientEmails = caseManagers.map(manager => manager.email);
+    }
 
       /*******************************************************************
          // Fetch case managers
@@ -99,7 +117,8 @@ exports.reportIncident = async (req, res) => {
       //await Task.insertMany(tasks);
       //******************************************************************
       // Send email notification to admin
-      if (emails.length > 0) {
+      // if (emails.length > 0) {
+      if (recipientEmails.length > 0) {
         const mailOptions = {
           from: process.env.EMAIL_USER,
           to: emails, // Use the array of emails
@@ -207,7 +226,10 @@ exports.addCommentsIncident = async (req, res) => {
     //   req.params.id,
     id,
     //   { $push: { comments: comment } },
-    { $push: { comments: { text, author, date: new Date() } } },
+    { 
+      $push: { comments: { text, author, date: new Date() } },
+      $set: { commentViewedBy: [] } // Clears commentViewedBy to reset notifications
+     },
       { new: true } // Return the updated document
     );
     if (!updatedIncident) {
@@ -219,6 +241,47 @@ exports.addCommentsIncident = async (req, res) => {
         res.status(500).json({ error: "Failed to add comment" });
     }
 };
+
+exports.clearCommentNotification = async (req, res) => {
+  try {
+        const { id } = req.params;
+        await Incident.findByIdAndUpdate(id, { hasNewComment: false });
+        res.status(200).json({ message: "Notification cleared" });
+  } catch (error) {
+    console.error("Error clearing notification:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.markCommentsAsViewed = async (req, res) => {
+  try {
+    const { incidentId } = req.params;
+    const userId = req.user.userId;
+    //console.log("Marking comments as viewed..."+incidentId);
+
+    const incident = await Incident.findById(incidentId);
+
+    if (!incident) {
+      return res.status(404).json({ message: "Incident not found" });
+    }
+
+    // Check if user has already viewed the comments
+    const alreadyViewed = incident.commentViewedBy.some(
+      (view) => view.userId.toString() === userId.toString()
+    );
+
+    if (!alreadyViewed) {
+      incident.commentViewedBy.push({ userId, viewedAt: new Date() });
+      await incident.save();
+    }
+
+    res.status(200).json({ message: "Comments marked as viewed" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
 exports.fileUploadIncident = async (req, res) => {
     try {
     const { incidentId } = req.body;
@@ -486,7 +549,7 @@ exports.getIncidents = async (req, res) => {
         // sort in descending (-1) order by length
         const sort = { createdAt: -1 };
     
-    // Count new/unread incidents for this user
+    // ✅ Count new/unread incidents for this user
     const newReports = await Incident.countDocuments({
       $and: [
         query,
@@ -498,6 +561,22 @@ exports.getIncidents = async (req, res) => {
         }
       ]
     });
+
+    // ✅ Count new/unread comments for this user
+const newComments = await Incident.countDocuments({
+  $and: [
+    query,
+    {
+      $or: [
+        { commentViewedBy: { $size: 0 } },
+        { commentViewedBy: { $not: { $elemMatch: { userId: userId } } } }
+      ]
+    }
+  ]
+});
+
+    // Count incidents with new comments
+    //const activeReminders = await Incident.countDocuments({ hasNewComment: true });
 
 
         const incidents = await Incident.find(query)
@@ -525,6 +604,8 @@ exports.getIncidents = async (req, res) => {
             incidentsWithTasks,
             total,
             newReports,
+            //activeReminders,
+            newComments, // ✅ Add this to Active Reminders
             page: Number(page),
             pages: Math.ceil(total / limit),
         });
@@ -536,12 +617,17 @@ exports.getIncidents = async (req, res) => {
 };
 
 // 3. Add an endpoint to mark incident as viewed (controllers/incidentController.js)
+// Now, this function only marks the "Incident" as read.
 exports.markIncidentAsViewed = async (req, res) => {
   try {
     const { incidentId } = req.params;
     const userId = req.user.userId;
 
     const incident = await Incident.findById(incidentId);
+
+    if (!incident) {
+      return res.status(404).json({ message: "Incident not found" });
+    }
     
     // Check if user has already viewed this incident
     const alreadyViewed = incident?.viewedBy?.some(
@@ -779,7 +865,7 @@ exports.updateEscalationStatus  = async (req, res) => {
   exports.updateTaskStatus = async (req, res) => {
     try {
       const { taskId } = req.params;
-      const { status, feedback } = req.body;
+      const { status, feedback, deadline } = req.body;
   
       const task = await Task.findById(taskId);
       if (!task) return res.status(404).json({ message: 'Task not found' });
@@ -787,6 +873,7 @@ exports.updateEscalationStatus  = async (req, res) => {
       // Update status and feedback
       task.status = status || task.status;
       task.feedback = feedback || task.feedback;
+      task.deadline = deadline || task.deadline;
       await task.save();
   
       res.status(200).json({ message: 'Task updated successfully', task });

@@ -7,7 +7,7 @@ import CreateUserModal from "../components/CreateUserModal";
 import { Menu, MenuSeparator } from "@headlessui/react";
 import TaskAssignmentModal from "../components/TaskAssignmentModal";
 import Spinner from "../components/Spinner";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import CaseClosureModal from "../components/CaseClosureModal";
 import InitialReportModal from "../components/InitialReportModal";
 
@@ -43,6 +43,7 @@ const AdminDashboard = () => {
   const [selectedIncidentForReport, setSelectedIncidentForReport] =
     useState(null);
   const [reportData, setReportData] = useState(null);
+  const navigate = useNavigate(); // Initialize navigate for navigation
 
   // Handle report selection
   const handleReportSelection = async (
@@ -99,7 +100,7 @@ const AdminDashboard = () => {
       setStats({
         total: response.data.total,
         newReports: response.data.newReports || 0,
-        activeReminders: response.data.activeReminders || 0,
+        activeReminders: response.data.newComments || 0,
       });
       setLoading(false);
     } catch (error) {
@@ -136,6 +137,31 @@ const AdminDashboard = () => {
         {},
         { withCredentials: true }
       );
+      // Clear the notification when the admin views the incident
+      await axios.patch(
+        `${import.meta.env.VITE_API_URL}/api/incidents/${id}/clear-comment-notification`,
+        {},
+        { withCredentials: true }
+    );
+
+    // Update the UI to remove "new comment" notifications
+    setIncidents((prevIncidents) =>
+      prevIncidents.map((incident) =>
+        incident._id === id ? { ...incident, commentViewedBy: [...incident.commentViewedBy, { userId: user?.user?.userId }] } : incident
+      )
+    );
+    // Update the incident list to remove the "New" badge | Update the list and active reminders count
+  //   setIncidents((prevIncidents) =>
+  //     prevIncidents.map((incident) =>
+  //         incident._id === id ? { ...incident, hasNewComment: false } : incident
+  //     )
+  // );
+
+  // Reduce the activeReminders count
+//   setStats((prevStats) => ({
+//     ...prevStats,
+//     activeReminders: Math.max(prevStats.activeReminders - 1, 0),
+// }));
       // Fetch updated incident details
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/incidents/get-incident/${id}`,
@@ -155,15 +181,32 @@ const AdminDashboard = () => {
 
   // Update table row styling to highlight new incidents
   const getRowClassName = (incident) => {
-    const isNew = !incident.viewedBy?.some(
+    const isNewIncident = !incident.viewedBy?.some(
       (view) => view?.userId === user?.user?.userId
     );
+
+//      // ✅ Add a red dot 🔴 for **unread comments**
+// const hasNewComments = !incident.commentViewedBy?.some(
+//   (view) => view?.userId === user?.user?.userId
+// );
+
     return `hover:bg-gray-50 transition duration-150 ease-in-out
-      ${isNew ? "bg-blue-50" : ""}`;
+      ${isNewIncident ? "bg-blue-50" : ""}`;
+
+    // return `hover:bg-gray-50 transition duration-150 ease-in-out
+    // ${isNewIncident ? "bg-blue-50" : ""}
+    // ${hasNewComments ? "border-l-4 border-red-500" : ""}`; // Adds red left border for new comments
   };
 
-  const handleOpenTaskAssignmentModal = (incidentId) => {
-    setSelectedIncident(incidentId);
+  // const handleOpenTaskAssignmentModal = (incidentId) => {
+  const handleOpenTaskAssignmentModal = (incident) => {
+    //console.log("handleOpenTaskAssignmentModal: ", incident, user?.user.role);
+    // Only allow task assignment for "Conflict of Interest" if user is Super Admin
+    if (incident.category === "Conflict of Interest" && user?.user.role !== "super_admin") {
+      toast.error("Only Super Admin can assign tasks for Conflict of Interest cases.");
+      return;
+  }
+    setSelectedIncident(incident?._id);
     setModalOpenTaskAssignment(true);
   };
 
@@ -214,14 +257,22 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-semibold">Admin Dashboard</h1>
+        <div className="flex gap-4">
+    <button
+      className="bg-blue-500 text-white py-2 px-4 rounded"
+      onClick={() => navigate('/admin-tasks')} // Navigate to the tasks page
+    >
+      View All Assigned Tasks
+    </button>
         <button
-          className="bg-red-500 text-white py-2 px-4 rounded"
+          className="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600 transition duration-150 shadow-sm"
           onClick={() => {
             logout();
           }}
         >
           Logout
         </button>
+      </div>
       </div>
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white shadow rounded p-4">
@@ -359,7 +410,8 @@ const AdminDashboard = () => {
                   </>
                 ) : (
                   <button
-                    onClick={() => handleOpenTaskAssignmentModal(incident._id)}
+                    // onClick={() => handleOpenTaskAssignmentModal(incident._id)}
+                    onClick={() => handleOpenTaskAssignmentModal(incident)}
                     className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded transition duration-150"
                   >
                     Assign Task
@@ -370,10 +422,25 @@ const AdminDashboard = () => {
                 <div className="flex space-x-2 items-center">
                   <button
                     onClick={() => handleViewIncident(incident._id)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded transition duration-150 shadow-sm"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded transition duration-150 shadow-sm relative"
                   >
                     View
+                    {/* 🔴 Red dot for unread comments */}
+                      {!incident.commentViewedBy?.some(view => view?.userId === user?.user?.userId) && (
+                        <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full animate-pulse">🔔</span>
+                    )}
                   </button>
+                  {/* Show a notification badge if there is a new comment */}
+                  {/* {!incident.commentViewedBy?.some(view => view?.userId === user?.user?.userId) && (
+                    <span className="ml-2 inline-block text-white text-xs px-2 py-1 rounded-full">
+                      🔔
+                    </span>
+                    )} */}
+
+                   {/* 🔴 Red dot for unread comments
+                   {hasNewComments && (
+                    <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+                  )} */}
                   {/* Severity Dropdown */}
                   <select
                     value={selectedSeverity[incident._id] || incident.severity}

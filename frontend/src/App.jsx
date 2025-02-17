@@ -22,6 +22,7 @@ import CaseManagerDashboard from "./pages/CaseManagerDashboard";
 import TaskList from "./pages/TaskList";
 import Spinner from "./components/Spinner";
 import ReportPage from "./pages/ReportPage";
+import AllTasksPage from "./pages/AllTasksPage";
 
 const App = () => {
   //const user = useSelector((state) => state.user.user);
@@ -80,6 +81,7 @@ const App = () => {
           </ProtectedRoutes>
           } />
         <Route path="/tasks" element={<TaskList />} />
+        <Route path="/admin-tasks" element={<AllTasksPage />} />
         <Route path="/admin-dashboard" element={
             <ProtectedRoutes allowedRoles={["super_admin"]}>
                 <AdminDashboard />

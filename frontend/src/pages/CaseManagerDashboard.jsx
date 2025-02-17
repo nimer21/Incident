@@ -34,12 +34,17 @@ const CaseManagerDashboard = ({ user }) => {
         params: { search, page, limit: 10 },
         withCredentials: true, // Send cookies for authentication
       });
-      setIncidents(response?.data.incidentsWithTasks);
+       // Filter out "Conflict of Interest" cases for Case Managers
+       const filteredCases = response?.data.incidentsWithTasks.filter(
+        (incident) => incident.category !== "Conflict of Interest"
+    );
+      //setIncidents(response?.data.incidentsWithTasks);
+      setIncidents(filteredCases);
       setTotalPages(response.data.pages); // Use this for pagination control
       setStats({
         total: response.data.total,
         newReports: response.data.newReports || 0,
-        activeReminders: response.data.activeReminders || 0,
+        activeReminders: response.data.newComments || 0,
       });
       setLoading(false);
     } catch (error) {
@@ -56,6 +61,18 @@ const CaseManagerDashboard = ({ user }) => {
         {},
         { withCredentials: true }
       );
+      // Clear the notification when the admin views the incident
+      await axios.patch(
+        `${import.meta.env.VITE_API_URL}/api/incidents/${id}/clear-comment-notification`,
+        {},
+        { withCredentials: true }
+    );
+    // Update the UI to remove "new comment" notifications
+    setIncidents((prevIncidents) =>
+      prevIncidents.map((incident) =>
+        incident._id === id ? { ...incident, commentViewedBy: [...incident.commentViewedBy, { userId: user?.user?.userId }] } : incident
+      )
+    );
 
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/incidents/get-incident/${id}`,
@@ -241,10 +258,20 @@ const CaseManagerDashboard = ({ user }) => {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => handleViewIncident(incident._id)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg shadow transition duration-150"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg shadow transition duration-150 relative"
                 >
                   View
+                  {/* 🔴 Red dot for unread comments */}
+                  {!incident.commentViewedBy?.some(view => view?.userId === user?.user?.userId) && (
+                        <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full animate-pulse">🔔</span>
+                    )}
                 </button>
+                {/* Show a notification badge if there is a new comment */}
+                {incident.hasNewComment && (
+                    <span className="ml-2 inline-block bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                      New
+                    </span>
+                    )}
                 <select
                   value={selectedSeverity[incident._id] || incident.severity}
                   onChange={(e) =>

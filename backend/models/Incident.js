@@ -93,6 +93,7 @@ const incidentSchema = new mongoose.Schema({
           timestamp: { type: Date, default: Date.now },
         },
       ],
+      hasNewComment: { type: Boolean, default: false },
       riskAssessment: {
         immediateDanger: { type: Boolean, default: false },
         interventionRequired: { type: Boolean, default: false },
@@ -136,7 +137,7 @@ const incidentSchema = new mongoose.Schema({
         type: Boolean,
         default: true  // All incidents start as new/unread
       },
-      viewedBy: [{
+      viewedBy: [{ //viewedBy → Tracks unread incidents.
         userId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: 'User'
@@ -145,7 +146,13 @@ const incidentSchema = new mongoose.Schema({
           type: Date,
           default: Date.now
         }
-      }]
+      }],
+      commentViewedBy: [ //commentViewedBy → Tracks unread comments separately.
+        {
+          userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+          viewedAt: Date
+        }
+      ]  
 }, { timestamps: true });
 
 module.exports = mongoose.model('Incident', incidentSchema);
