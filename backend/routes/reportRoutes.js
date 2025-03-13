@@ -5,7 +5,7 @@ const authenticateToken = require("../middleware/authMiddleware");
 
 
 // Use :reportType as a dynamic route parameter
-router.post('/create-report', createReport);
+router.post('/create-report', authenticateToken(["super_admin","asset_safeguarding", "child_safeguarding", "youth_adult", "data_breach"]), createReport);
 router.get('/:incidentId/:reportType', authenticateToken(["super_admin"]), getReport);
 router.put('/:reportId', updateReport);
 

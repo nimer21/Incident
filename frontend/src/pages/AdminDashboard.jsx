@@ -10,6 +10,8 @@ import Spinner from "../components/Spinner";
 import { Link, useNavigate } from "react-router-dom";
 import CaseClosureModal from "../components/CaseClosureModal";
 import InitialReportModal from "../components/InitialReportModal";
+import FullAssessmentModal from "../components/FullAssessmentModal";
+import ActionPlanReportModal from "../components/ActionPlanReportModal";
 
 const severityColors = {
   Low: "text-green-600",
@@ -55,6 +57,7 @@ const AdminDashboard = () => {
     setSelectedIncidentForReport({ id: incidentId, caseReference });
 
     try {
+      console.log("incidentId, reportType", incidentId, reportType);
       const response = await axios.get(
         `${
           import.meta.env.VITE_API_URL
@@ -524,7 +527,7 @@ const AdminDashboard = () => {
                               handleReportSelection(
                                 incident._id,
                                 incident.caseReference,
-                                "Action Plan"
+                                "ActionPlan"
                               )
                             }
                           >
@@ -559,6 +562,12 @@ const AdminDashboard = () => {
                   >
                     Report Page
                   </Link>
+                  <Link
+                  to={`/audit-log/${incident._id}`}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded transition duration-150"
+                  >
+                    View Audit Log
+                  </Link>
                 </div>
               </td>
             </tr>
@@ -591,6 +600,34 @@ const AdminDashboard = () => {
           )}
           {selectedReportType === "CaseClosure" && (
             <CaseClosureModal
+              isOpen={isReportModalOpen}
+              onClose={() => {
+                setIsReportModalOpen(false);
+                setSelectedReportType("");
+                setSelectedIncidentForReport(null);
+                setReportData(null);
+              }}
+              incidentId={selectedIncidentForReport?.id}
+              caseReference={selectedIncidentForReport?.caseReference}
+              reportData={reportData}
+            />
+          )}
+          {selectedReportType === "FullAssessment" && (
+            <FullAssessmentModal
+              isOpen={isReportModalOpen}
+              onClose={() => {
+                setIsReportModalOpen(false);
+                setSelectedReportType("");
+                setSelectedIncidentForReport(null);
+                setReportData(null);
+              }}
+              incidentId={selectedIncidentForReport?.id}
+              caseReference={selectedIncidentForReport?.caseReference}
+              reportData={reportData}
+            />
+          )}
+          {selectedReportType === "ActionPlan" && (
+            <ActionPlanReportModal
               isOpen={isReportModalOpen}
               onClose={() => {
                 setIsReportModalOpen(false);

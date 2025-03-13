@@ -1,6 +1,8 @@
 const Blacklist = require('../models/Blacklist');
 const Incident = require('../models/Incident');
 const User = require('../models/User');
+const AuditLog = require("../models/AuditLog"); // Import Audit Log Model
+const mongoose = require("mongoose"); // ✅ Import mongoose
 const Task = require('../models/Task');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -33,13 +35,27 @@ const transporter = nodemailer.createTransport({
 
 exports.reportIncident = async (req, res) => {
     try {
-      const incidentData = req.body;
       console.log("req.body: ", req.body);
+      console.log("req.user?: ", req.user);
+
+      const incidentData = req.body;
+
+      // ✅ Handle file attachments (if any)
       if (req.file) {
         incidentData.fileAttachment = req.file.path; // Attach file path
       }
-      // Generate a case reference
+      // ✅ Generate a case reference
       incidentData.caseReference = generateCaseReference(); // Generate case reference
+
+      // ✅ Determine user details (if authenticated)
+    let userId = null;
+    let reportedBy = "Anonymous"; // Default for anonymous users
+
+    if (req.user) {  // ✅ Capture authenticated user data if available
+      userId = req.user._id;
+      reportedBy = req.user.role || "Registered User";
+    }
+    // ✅ Save the incident to the database
       const incident = new Incident(incidentData);
       await incident.save();
 
@@ -142,6 +158,27 @@ exports.reportIncident = async (req, res) => {
                 incident.notifiedManagers = true;
                 await incident.save(); // Save the updated incident only after successful email delivery
                 console.log("Incident marked as notified.");
+                //await logAudit(incident._id, req.user.userId, req.user.role, "Incident Created", `Case Reference: ${incident.caseReference}`);
+                
+                // await logAudit(
+                //   incident._id,
+                //   req.user?.userId || null,  // ✅ Prevents crash if req.user is undefined
+                //   req.user?.role || "Unknown",
+                //   "Incident Created",
+                //   `Case Reference: ${incident.caseReference}`
+                // );
+
+                // ✅ Log audit only if user is authenticated
+                if (userId) {
+                  await logAudit(
+                    incident._id,
+                    userId,
+                    reportedBy,
+                    "Incident Created",
+                    `Case Reference: ${incident.caseReference}`
+                  );
+                }
+                
                 // Update the incident's status to "In Progress" if it's not already in progress
                 incident.status = "In Progress";
                 await incident.save();
@@ -184,7 +221,7 @@ exports.reportIncident = async (req, res) => {
 // Update Severity
 exports.updateIncidentSeverity = async (req, res) => {
     try {
-        const { severity } = req.body;
+    const { severity } = req.body;
     const validSeverities = ["Low", "Medium", "High"];
     if (!validSeverities.includes(severity)) {
       return res.status(400).json({ message: "Invalid severity level." });
@@ -195,7 +232,8 @@ exports.updateIncidentSeverity = async (req, res) => {
       { severity },
       { new: true }
     );
-    res.status(200).json(updatedIncident);        
+    await logAudit(req.params.id, req.user.userId, req.user.role, "Severity Updated", `Changed to: ${severity}`);    
+    res.status(200).json(updatedIncident);
     } catch (error) {
         res.status(500).json({ message: "Error updating severity.", error });        
     }
@@ -236,6 +274,7 @@ exports.addCommentsIncident = async (req, res) => {
         return res.status(404).json({ message: "Incident not found" });
       }
 
+    await logAudit(id, req.user.userId, req.user.role, "Comment Added", `Comment: "${text}" by ${author}`);
     res.status(200).json({updatedIncident, ok: true}); // Include `ok: true` for clarity
     } catch (error) {
         res.status(500).json({ error: "Failed to add comment" });
@@ -805,6 +844,8 @@ exports.assignIncidentTasks = async (req, res) => {
     //incident.tasks.push(task);
     await task.save();
 
+    await logAudit(incidentId, req.user.userId, req.user.role, "Task Assigned", `Assigned to: ${assignedUser.username}`);
+
     res.status(201).json({ message: "Task assigned successfully", task, assignedByName: assigningUser.username, assignedToName: assignedUser.username });
   } catch (error) {
     console.error("Error assigning task:", error);
@@ -882,6 +923,50 @@ exports.updateEscalationStatus  = async (req, res) => {
       res.status(500).json({ message: 'Server error' });
     }
   };
+
+  const logAudit = async (incidentId, userId, role, action, details = "") => {
+  try {
+    if (!incidentId) {
+      console.error("Audit logging failed: Missing incidentId");
+      return;
+    }
+    const incident = await Incident.findById(incidentId);
+    if (!incident) return; // Ensure incident exists
+    // Handle anonymous users (no userId)
+    const performedBy = userId ? new mongoose.Types.ObjectId(userId) : null;
+    const performedByRole = role || "Anonymous";
+
+    const auditEntry = new AuditLog({
+      incidentId,
+      caseReference: incident.caseReference, // Store case reference
+      performedBy, // Can be null for anonymous users
+      performedByRole: performedByRole,
+      action,
+      details,
+      timestamp: new Date(),
+    });
+
+    await auditEntry.save();
+  } catch (error) {
+    console.error("Error logging audit:", error);
+  }
+};
+
+exports.getIncidentAuditLogs = async (req, res) => {
+  try {
+    const { incidentId } = req.params;
+    const logs = await AuditLog.find({ incidentId })
+      .populate("performedBy", "username") // Populate username
+      .sort({ timestamp: -1 }); // Sort by newest first
+
+    res.status(200).json(logs);
+  } catch (error) {
+    console.error("Error fetching audit logs:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
   
   
   

@@ -4,7 +4,9 @@ import { useParams, useNavigate } from "react-router-dom"; // Import useNavigate
 import Spinner from "../components/Spinner";
 import InitialReportView from "../components/InitialReportView";
 import CaseClosureReportView from "../components/CaseClosureReportView";
+import FullAssessmentView from "../components/FullAssessmentView";
 import { toast } from "react-toastify";
+import ActionPlanReportView from "../components/ActionPlanReportView";
 
 const ReportPage = () => {
   const { incidentId } = useParams(); // Extract the incident ID
@@ -21,7 +23,9 @@ const ReportPage = () => {
       case "InitialReport":
         return <InitialReportView report={report} reportType={reportType} incidentId={incidentId} />;
       case "FullAssessment":
-        return <ReportView report={report} reportType={reportType} incidentId={incidentId} />;
+        return <FullAssessmentView report={report} reportType={reportType} incidentId={incidentId} />;
+      case "ActionPlan":
+        return <ActionPlanReportView report={report} reportType={reportType} incidentId={incidentId} />;
       case "CaseClosure":
         return <CaseClosureReportView report={report} reportType={reportType} incidentId={incidentId} />;
       default:
@@ -31,7 +35,6 @@ const ReportPage = () => {
 
   const fetchReportData = async (incidentId, reportType) => {
     try {
-      console.log(incidentId, reportType);
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/reports/${incidentId}/${reportType}`,
         { withCredentials: true }
@@ -85,7 +88,8 @@ const ReportPage = () => {
         >
           <option value="" disabled>-- Select Report Type --</option>
           <option value="InitialReport">Initial Report</option>
-          {/* <option value="FullAssessment">Full Assessment</option> */}
+          <option value="FullAssessment">Full Assessment</option>
+          <option value="ActionPlan">Action Plan</option>
           <option value="CaseClosure">Case Closure</option>
           {/* Add other report types as needed */}
         </select>

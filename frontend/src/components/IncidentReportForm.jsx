@@ -100,7 +100,12 @@ const handleCloseClick = () => {
         {
         headers: {
             "Content-Type": "multipart/form-data",
-            },       
+            //Authorization: `Bearer ${localStorage.getItem("authToken")}` // ✅ Ensure token is included
+            ...(localStorage.getItem("authToken") && {
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            }),
+            },
+            withCredentials: true, // ✅ Send cookies only if user is logged in
     });
 
     // Get the response data

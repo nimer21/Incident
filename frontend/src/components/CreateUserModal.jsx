@@ -30,7 +30,7 @@ const CreateUserModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null; // Hide modal if not open
 
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center">
+    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white rounded-lg shadow-lg w-96 p-6">
         <h2 className="text-lg font-semibold mb-4">Create New User</h2>
         <form onSubmit={handleSubmit}>

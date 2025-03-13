@@ -2,6 +2,7 @@ import React from 'react';
 
 const CaseClosureReportView = ({ report, reportType, incidentId }) => {
   if (!report) return <div className="text-center text-gray-500">No report selected</div>;
+  console.log(report);
 
   return (
     <div className="bg-white p-8 m-4 max-w-[8.5in] min-h-[11in] border border-gray-300 shadow-lg font-sans leading-relaxed">

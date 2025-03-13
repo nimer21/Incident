@@ -23,6 +23,7 @@ import TaskList from "./pages/TaskList";
 import Spinner from "./components/Spinner";
 import ReportPage from "./pages/ReportPage";
 import AllTasksPage from "./pages/AllTasksPage";
+import AuditLogPage from "./pages/AuditLogPage";
 
 const App = () => {
   //const user = useSelector((state) => state.user.user);
@@ -69,6 +70,7 @@ const App = () => {
         <Route path="/incident-form" element={<IncidentReportForm />} />
         <Route path="/submission-success" element={<SubmissionSuccess />} />
         <Route path="/report-page/:incidentId" element={<ReportPage />} />
+        <Route path="/audit-log/:incidentId" element={<AuditLogPage />} />
         <Route path="/user-dashboard" element={
             <ProtectedRoutes allowedRoles={["user"]}>
                 <UserDashboard />
